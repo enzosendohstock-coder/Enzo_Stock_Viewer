@@ -79,15 +79,27 @@ function render() {
   const withComputed = rows.map(r => {
     const daily = Math.round(r.grandTotalNet / 1000);
     cumulative += daily;
-    return { ...r, daily, cumulative };
+    return {
+      ...r,
+      daily,
+      cumulative,
+      foreignTotalNetLots: Math.round(r.foreignTotalNet / 1000),
+      trustNetLots: Math.round(r.trustNet / 1000),
+      dealerTotalNetLots: Math.round(r.dealerTotalNet / 1000),
+    };
   });
 
   renderChart(withComputed);
   renderTable(withComputed);
 }
 
+function shortDate(dateStr) {
+  const [y, m, d] = dateStr.split("-");
+  return y.slice(2) + m + d;
+}
+
 function renderChart(rows) {
-  const labels = rows.map(r => r.date);
+  const labels = rows.map(r => shortDate(r.date));
   const dailyData = rows.map(r => r.daily);
   const cumulativeData = rows.map(r => r.cumulative);
   const barColors = dailyData.map(v => v >= 0 ? "#c0392b" : "#27ae60");
@@ -144,9 +156,9 @@ function renderTable(rows) {
       <td>${r.date}</td>
       <td>${r.stockCode}</td>
       <td>${r.stockName}</td>
-      <td class="${r.foreignTotalNet >= 0 ? 'positive' : 'negative'}">${r.foreignTotalNet.toLocaleString()}</td>
-      <td class="${r.trustNet >= 0 ? 'positive' : 'negative'}">${r.trustNet.toLocaleString()}</td>
-      <td class="${r.dealerTotalNet >= 0 ? 'positive' : 'negative'}">${r.dealerTotalNet.toLocaleString()}</td>
+      <td class="${r.foreignTotalNetLots >= 0 ? 'positive' : 'negative'}">${r.foreignTotalNetLots.toLocaleString()}</td>
+      <td class="${r.trustNetLots >= 0 ? 'positive' : 'negative'}">${r.trustNetLots.toLocaleString()}</td>
+      <td class="${r.dealerTotalNetLots >= 0 ? 'positive' : 'negative'}">${r.dealerTotalNetLots.toLocaleString()}</td>
       <td class="${r.daily >= 0 ? 'positive' : 'negative'}">${r.daily.toLocaleString()}</td>
       <td>${r.cumulative.toLocaleString()}</td>
     `;
