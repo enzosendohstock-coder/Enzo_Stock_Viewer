@@ -105,7 +105,7 @@ function render() {
     };
   });
 
-  renderChart(withComputed, metric.label);
+  renderChart(withComputed, metricSelect.value, metric.label);
   renderTable(withComputed);
 }
 
@@ -114,29 +114,69 @@ function shortDate(dateStr) {
   return y.slice(2) + m + d;
 }
 
-function renderChart(rows, metricLabel) {
+function renderChart(rows, metricKey, metricLabel) {
   const labels = rows.map(r => shortDate(r.date));
-  const dailyData = rows.map(r => r.metricDaily);
   const cumulativeData = rows.map(r => r.metricCumulative);
-  const barColors = dailyData.map(v => v >= 0 ? "#c0392b" : "#27ae60");
+
+  let barDatasets;
+  let stacked;
+
+  if (metricKey === "grand") {
+    // 三大法人合計：三色堆疊柱，個別呈現外資/投信/自營商當日買賣超的組成
+    barDatasets = [
+      {
+        type: "bar",
+        label: "外資買賣超(張)",
+        data: rows.map(r => r.foreignTotalNetLots),
+        backgroundColor: "#3498db",
+        yAxisID: "y",
+        stack: "daily",
+      },
+      {
+        type: "bar",
+        label: "投信買賣超(張)",
+        data: rows.map(r => r.trustNetLots),
+        backgroundColor: "#f39c12",
+        yAxisID: "y",
+        stack: "daily",
+      },
+      {
+        type: "bar",
+        label: "自營商買賣超(張)",
+        data: rows.map(r => r.dealerTotalNetLots),
+        backgroundColor: "#9b59b6",
+        yAxisID: "y",
+        stack: "daily",
+      },
+    ];
+    stacked = true;
+  } else {
+    // 單一類別：紅漲綠跌的單色柱
+    const dailyData = rows.map(r => r.metricDaily);
+    const barColors = dailyData.map(v => v >= 0 ? "#c0392b" : "#27ae60");
+    barDatasets = [
+      {
+        type: "bar",
+        label: `${metricLabel}買賣超(張)`,
+        data: dailyData,
+        backgroundColor: barColors,
+        yAxisID: "y",
+      },
+    ];
+    stacked = false;
+  }
 
   const config = {
     data: {
       labels,
       datasets: [
-        {
-          type: "bar",
-          label: `${metricLabel}買賣超(張)`,
-          data: dailyData,
-          backgroundColor: barColors,
-          yAxisID: "y",
-        },
+        ...barDatasets,
         {
           type: "line",
           label: `${metricLabel}累計買賣超(張)`,
           data: cumulativeData,
-          borderColor: "#2980b9",
-          backgroundColor: "#2980b9",
+          borderColor: "#2c3e50",
+          backgroundColor: "#2c3e50",
           yAxisID: "y1",
           pointRadius: 0,
           borderWidth: 2,
@@ -148,23 +188,23 @@ function renderChart(rows, metricLabel) {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       scales: {
-        x: { ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
-        y: { position: "left", title: { display: true, text: `${metricLabel}買賣超(張)` } },
+        x: { stacked, ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
+        y: { stacked, position: "left", title: { display: true, text: `${metricLabel}買賣超(張)` } },
         y1: { position: "right", title: { display: true, text: `${metricLabel}累計買賣超(張)` }, grid: { drawOnChartArea: false } },
       },
     },
   };
 
   if (chart) {
-    chart.data = config.data;
-    chart.options = config.options;
-    chart.update();
-  } else {
-    chart = new Chart(document.getElementById("chart"), config);
+    chart.destroy();
   }
+  chart = new Chart(document.getElementById("chart"), config);
 }
 
 function renderTable(rows) {
+  const cumulativeHeader = document.getElementById("cumulativeHeader");
+  cumulativeHeader.textContent = rows.length > 0 ? `累計(${shortDate(rows[0].date)})` : "累計";
+
   tableBody.innerHTML = "";
   const reversed = [...rows].reverse();
   for (const r of reversed) {
