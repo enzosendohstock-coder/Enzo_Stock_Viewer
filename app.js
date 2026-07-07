@@ -4,7 +4,15 @@ const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
 const startDateInput = document.getElementById("startDate");
 const endDateInput = document.getElementById("endDate");
+const metricSelect = document.getElementById("metricSelect");
 const tableBody = document.querySelector("#dataTable tbody");
+
+const METRIC_FIELDS = {
+  grand: { field: "grandTotalNet", label: "三大法人合計" },
+  foreign: { field: "foreignTotalNet", label: "外資" },
+  trust: { field: "trustNet", label: "投信" },
+  dealer: { field: "dealerTotalNet", label: "自營商" },
+};
 
 let allRows = [];
 let chart = null;
@@ -74,22 +82,30 @@ function getFilteredRows() {
 
 function render() {
   const rows = getFilteredRows();
+  const metric = METRIC_FIELDS[metricSelect.value];
 
-  let cumulative = 0;
+  let grandCumulative = 0;
+  let metricCumulative = 0;
   const withComputed = rows.map(r => {
-    const daily = Math.round(r.grandTotalNet / 1000);
-    cumulative += daily;
+    const grandDaily = Math.round(r.grandTotalNet / 1000);
+    grandCumulative += grandDaily;
+
+    const metricDaily = Math.round(r[metric.field] / 1000);
+    metricCumulative += metricDaily;
+
     return {
       ...r,
-      daily,
-      cumulative,
+      grandDaily,
+      grandCumulative,
+      metricDaily,
+      metricCumulative,
       foreignTotalNetLots: Math.round(r.foreignTotalNet / 1000),
       trustNetLots: Math.round(r.trustNet / 1000),
       dealerTotalNetLots: Math.round(r.dealerTotalNet / 1000),
     };
   });
 
-  renderChart(withComputed);
+  renderChart(withComputed, metric.label);
   renderTable(withComputed);
 }
 
@@ -98,10 +114,10 @@ function shortDate(dateStr) {
   return y.slice(2) + m + d;
 }
 
-function renderChart(rows) {
+function renderChart(rows, metricLabel) {
   const labels = rows.map(r => shortDate(r.date));
-  const dailyData = rows.map(r => r.daily);
-  const cumulativeData = rows.map(r => r.cumulative);
+  const dailyData = rows.map(r => r.metricDaily);
+  const cumulativeData = rows.map(r => r.metricCumulative);
   const barColors = dailyData.map(v => v >= 0 ? "#c0392b" : "#27ae60");
 
   const config = {
@@ -110,14 +126,14 @@ function renderChart(rows) {
       datasets: [
         {
           type: "bar",
-          label: "買賣超(張)",
+          label: `${metricLabel}買賣超(張)`,
           data: dailyData,
           backgroundColor: barColors,
           yAxisID: "y",
         },
         {
           type: "line",
-          label: "累計買賣超(張)",
+          label: `${metricLabel}累計買賣超(張)`,
           data: cumulativeData,
           borderColor: "#2980b9",
           backgroundColor: "#2980b9",
@@ -133,14 +149,15 @@ function renderChart(rows) {
       interaction: { mode: "index", intersect: false },
       scales: {
         x: { ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
-        y: { position: "left", title: { display: true, text: "買賣超(張)" } },
-        y1: { position: "right", title: { display: true, text: "累計買賣超(張)" }, grid: { drawOnChartArea: false } },
+        y: { position: "left", title: { display: true, text: `${metricLabel}買賣超(張)` } },
+        y1: { position: "right", title: { display: true, text: `${metricLabel}累計買賣超(張)` }, grid: { drawOnChartArea: false } },
       },
     },
   };
 
   if (chart) {
     chart.data = config.data;
+    chart.options = config.options;
     chart.update();
   } else {
     chart = new Chart(document.getElementById("chart"), config);
@@ -159,8 +176,8 @@ function renderTable(rows) {
       <td class="${r.foreignTotalNetLots >= 0 ? 'positive' : 'negative'}">${r.foreignTotalNetLots.toLocaleString()}</td>
       <td class="${r.trustNetLots >= 0 ? 'positive' : 'negative'}">${r.trustNetLots.toLocaleString()}</td>
       <td class="${r.dealerTotalNetLots >= 0 ? 'positive' : 'negative'}">${r.dealerTotalNetLots.toLocaleString()}</td>
-      <td class="${r.daily >= 0 ? 'positive' : 'negative'}">${r.daily.toLocaleString()}</td>
-      <td>${r.cumulative.toLocaleString()}</td>
+      <td class="${r.grandDaily >= 0 ? 'positive' : 'negative'}">${r.grandDaily.toLocaleString()}</td>
+      <td>${r.grandCumulative.toLocaleString()}</td>
     `;
     tableBody.appendChild(tr);
   }
@@ -169,6 +186,7 @@ function renderTable(rows) {
 stockSelect.addEventListener("change", render);
 startDateInput.addEventListener("change", render);
 endDateInput.addEventListener("change", render);
+metricSelect.addEventListener("change", render);
 
 loadData().catch(err => {
   statusEl.textContent = "資料載入失敗：" + err.message;
