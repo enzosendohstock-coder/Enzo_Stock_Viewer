@@ -39,7 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const response = await fetch(APPS_SCRIPT_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify({ code: resolved.code, honeypot: honeypotInput.value }),
+        body: JSON.stringify({
+          code: resolved.code,
+          shortName: resolved.shortName || '',
+          fullName: resolved.name || '',
+          honeypot: honeypotInput.value,
+        }),
       });
       const result = await response.json();
       showMessage(message, result.message, result.success);
