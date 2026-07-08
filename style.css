@@ -75,6 +75,51 @@ body {
   font-size: 0.9rem;
 }
 
+.watchlist-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.watchlist-form label {
+  display: flex;
+  flex-direction: column;
+  font-size: 0.85rem;
+  gap: 4px;
+}
+
+.watchlist-form input[type="text"] {
+  font-size: 1rem;
+  padding: 6px;
+}
+
+.watchlist-form button {
+  font-size: 1rem;
+  padding: 8px 20px;
+  cursor: pointer;
+}
+
+.honeypot-field {
+  position: absolute;
+  left: -9999px;
+}
+
+.form-message {
+  margin-top: 12px;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.form-message.success {
+  color: #27ae60;
+}
+
+.form-message.error {
+  color: #c0392b;
+}
+
 @media (max-width: 768px) {
   body {
     padding-left: 16px;

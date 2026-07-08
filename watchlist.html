@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新增追蹤股票</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>新增追蹤股票</h1>
+
+  <section class="panel">
+    <p class="placeholder-text">
+      輸入股票代號即可加入追蹤清單，隔天排程就會開始自動抓取三大法人買賣超資料。<br>
+      注意：新加入的股票<strong>不會自動回補過去的歷史資料</strong>，只會從加入當天開始累積；請自行確認代號正確。
+    </p>
+
+    <form id="watchlistForm" class="watchlist-form">
+      <label>
+        股票代號
+        <input type="text" id="stockCode" name="stockCode" placeholder="例如 2330" inputmode="numeric" autocomplete="off" required>
+      </label>
+      <label class="honeypot-field" aria-hidden="true">
+        請勿填寫
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+      </label>
+      <button type="submit" id="submitBtn">新增</button>
+    </form>
+
+    <div id="formMessage" class="form-message"></div>
+  </section>
+
+  <script src="watchlist.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
