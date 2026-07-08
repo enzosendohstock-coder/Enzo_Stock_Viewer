@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'PASTE_YOUR_DEPLOYED_WEB_APP_URL_HERE';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwlBgAvgvp70A-eBLoQ9rid7JL3otl5jtAll2SQLzB2CclrTogb2Lj4GQIfMYoTveaeCA/exec';
 const CODE_PATTERN = /^[0-9]{4,6}$/;
 
 document.addEventListener('DOMContentLoaded', () => {
