@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>三大法人買賣超</title>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>三大法人買賣超</h1>
+
+  <div class="controls">
+    <label>
+      股票代號
+      <select id="stockSelect"></select>
+    </label>
+    <label>
+      開始日期
+      <input type="date" id="startDate">
+    </label>
+    <label>
+      結束日期
+      <input type="date" id="endDate">
+    </label>
+    <label>
+      圖表指標
+      <select id="metricSelect">
+        <option value="grand">三大法人合計</option>
+        <option value="foreign">外資</option>
+        <option value="trust">投信</option>
+        <option value="dealer">自營商</option>
+      </select>
+    </label>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <table id="dataTable">
+    <thead>
+      <tr>
+        <th>日期</th>
+        <th>股票代號</th>
+        <th>股票名稱</th>
+        <th>外資</th>
+        <th>投信</th>
+        <th>自營</th>
+        <th>買賣超</th>
+        <th id="cumulativeHeader">累計</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script src="app.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
