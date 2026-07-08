@@ -120,6 +120,25 @@ body {
   color: #c0392b;
 }
 
+.stock-preview {
+  margin-top: 8px;
+  font-size: 0.85rem;
+  min-height: 1.2em;
+  color: #666;
+}
+
+.stock-preview.success {
+  color: #27ae60;
+}
+
+.stock-preview.warning {
+  color: #b8860b;
+}
+
+.stock-preview.error {
+  color: #c0392b;
+}
+
 @media (max-width: 768px) {
   body {
     padding-left: 16px;

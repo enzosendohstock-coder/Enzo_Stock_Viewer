@@ -17,8 +17,9 @@
 
     <form id="watchlistForm" class="watchlist-form">
       <label>
-        股票代號
-        <input type="text" id="stockCode" name="stockCode" placeholder="例如 2330" inputmode="numeric" autocomplete="off" required>
+        股票代號 / 名稱
+        <input type="text" id="stockCode" name="stockCode" list="stockOptions" placeholder="代號、簡稱或全名皆可，例如 2395 或 研華" autocomplete="off" required>
+        <datalist id="stockOptions"></datalist>
       </label>
       <label class="honeypot-field" aria-hidden="true">
         請勿填寫
@@ -27,6 +28,7 @@
       <button type="submit" id="submitBtn">新增</button>
     </form>
 
+    <div id="stockPreview" class="stock-preview"></div>
     <div id="formMessage" class="form-message"></div>
   </section>
 
