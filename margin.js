@@ -7,6 +7,8 @@ const endDateInput = document.getElementById("endDate");
 const metricSelect = document.getElementById("metricSelect");
 const tableBody = document.querySelector("#dataTable tbody");
 
+// Google Sheet 裡所有欄位統一都是「股」，畫面呈現時一律除以 1000 換算成張，
+// 跟三大法人買賣超那頁(app.js)的做法一致，不用記哪些欄位單位不一樣。
 const METRIC_FIELDS = {
   margin: { field: "marginBalance", quotaField: "marginQuota", label: "融資餘額" },
   short: { field: "shortBalance", quotaField: "shortQuota", label: "融券餘額" },
