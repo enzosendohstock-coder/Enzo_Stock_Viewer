@@ -22,6 +22,20 @@ const METRIC_FIELDS = {
 
 let allRows = [];
 let chart = null;
+let recentDatesSet = new Set();
+
+function computeRecentRows() {
+  const stockCode = stockSelect.value;
+  const days = Number(summaryDaysSelect.value);
+
+  const stockRows = allRows
+    .filter(r => r.stockCode === stockCode)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const recent = stockRows.slice(-days);
+  recentDatesSet = new Set(recent.map(r => r.date));
+  return recent;
+}
 
 function num(v) {
   const n = Number(v);
@@ -88,6 +102,7 @@ function getFilteredRows() {
 }
 
 function render() {
+  computeRecentRows();
   const rows = getFilteredRows();
   const metric = METRIC_FIELDS[metricSelect.value];
 
@@ -216,6 +231,9 @@ function renderTable(rows) {
   const reversed = [...rows].reverse();
   for (const r of reversed) {
     const tr = document.createElement("tr");
+    if (recentDatesSet.has(r.date)) {
+      tr.classList.add("highlight-row");
+    }
     tr.innerHTML = `
       <td>${r.date}</td>
       <td>${r.stockCode}</td>
@@ -231,14 +249,7 @@ function renderTable(rows) {
 }
 
 function renderSummary() {
-  const stockCode = stockSelect.value;
-  const days = Number(summaryDaysSelect.value);
-
-  const stockRows = allRows
-    .filter(r => r.stockCode === stockCode)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const recent = stockRows.slice(-days);
+  const recent = computeRecentRows();
 
   if (recent.length === 0) {
     summaryRangeEl.textContent = "無資料";
@@ -251,7 +262,7 @@ function renderSummary() {
 
   const sumLots = (field) => Math.round(recent.reduce((acc, r) => acc + r[field], 0) / 1000);
 
-  summaryRangeEl.textContent = `${shortDate(recent[0].date)}~${shortDate(recent[recent.length - 1].date)} 合計`;
+  summaryRangeEl.textContent = "合計";
   setSummaryCell(summaryForeignEl, sumLots("foreignTotalNet"));
   setSummaryCell(summaryTrustEl, sumLots("trustNet"));
   setSummaryCell(summaryDealerEl, sumLots("dealerTotalNet"));
@@ -268,6 +279,7 @@ stockSelect.addEventListener("change", renderSummary);
 startDateInput.addEventListener("change", render);
 endDateInput.addEventListener("change", render);
 metricSelect.addEventListener("change", render);
+summaryDaysSelect.addEventListener("change", render);
 summaryDaysSelect.addEventListener("change", renderSummary);
 
 loadData().catch(err => {

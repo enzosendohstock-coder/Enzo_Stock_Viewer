@@ -243,6 +243,10 @@ td.negative { color: #27ae60; }
   font-weight: bold;
 }
 
+.highlight-row {
+  background: #fff3cd;
+}
+
 .summary-row td {
   border-bottom: 2px solid #999;
 }
