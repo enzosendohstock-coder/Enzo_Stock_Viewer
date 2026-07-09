@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const datalist = document.getElementById('stockOptions');
 
   loadStockList(datalist);
+  loadWatchlist();
 
   codeInput.addEventListener('input', () => {
     updatePreview(preview, codeInput.value.trim());
@@ -52,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         form.reset();
         preview.textContent = '';
         preview.className = 'stock-preview';
+        loadWatchlist();
       }
     } catch (err) {
       showMessage(message, '送出失敗，請檢查網路連線後再試一次。', false);
@@ -77,6 +79,35 @@ async function loadStockList(datalist) {
     datalist.appendChild(fragment);
   } catch (err) {
     console.error('股票清單載入失敗', err);
+  }
+}
+
+async function loadWatchlist() {
+  const status = document.getElementById('watchlistStatus');
+  const tbody = document.querySelector('#watchlistTable tbody');
+
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    const result = await res.json();
+
+    if (!result.success) {
+      status.textContent = '清單載入失敗。';
+      return;
+    }
+
+    const list = [...result.list].sort((a, b) => a.code.localeCompare(b.code));
+
+    tbody.innerHTML = '';
+    for (const item of list) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${item.code}</td><td>${item.shortName}</td><td>${item.fullName}</td>`;
+      tbody.appendChild(tr);
+    }
+
+    status.textContent = `共 ${list.length} 檔股票`;
+  } catch (err) {
+    status.textContent = '清單載入失敗，請檢查網路連線。';
+    console.error('讀取追蹤清單失敗', err);
   }
 }
 
