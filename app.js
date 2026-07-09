@@ -6,6 +6,12 @@ const startDateInput = document.getElementById("startDate");
 const endDateInput = document.getElementById("endDate");
 const metricSelect = document.getElementById("metricSelect");
 const tableBody = document.querySelector("#dataTable tbody");
+const summaryDaysSelect = document.getElementById("summaryDays");
+const summaryRangeEl = document.getElementById("summaryRange");
+const summaryForeignEl = document.getElementById("summaryForeign");
+const summaryTrustEl = document.getElementById("summaryTrust");
+const summaryDealerEl = document.getElementById("summaryDealer");
+const summaryGrandEl = document.getElementById("summaryGrand");
 
 const METRIC_FIELDS = {
   grand: { field: "grandTotalNet", label: "三大法人合計" },
@@ -41,6 +47,7 @@ async function loadData() {
   populateStockOptions();
   populateDateRange();
   render();
+  renderSummary();
   statusEl.textContent = `共 ${allRows.length} 筆資料，最後更新：${new Date().toLocaleString("zh-TW")}`;
 }
 
@@ -223,10 +230,45 @@ function renderTable(rows) {
   }
 }
 
+function renderSummary() {
+  const stockCode = stockSelect.value;
+  const days = Number(summaryDaysSelect.value);
+
+  const stockRows = allRows
+    .filter(r => r.stockCode === stockCode)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  const recent = stockRows.slice(-days);
+
+  if (recent.length === 0) {
+    summaryRangeEl.textContent = "無資料";
+    for (const el of [summaryForeignEl, summaryTrustEl, summaryDealerEl, summaryGrandEl]) {
+      el.textContent = "";
+      el.className = "";
+    }
+    return;
+  }
+
+  const sumLots = (field) => Math.round(recent.reduce((acc, r) => acc + r[field], 0) / 1000);
+
+  summaryRangeEl.textContent = `${shortDate(recent[0].date)}~${shortDate(recent[recent.length - 1].date)} 合計`;
+  setSummaryCell(summaryForeignEl, sumLots("foreignTotalNet"));
+  setSummaryCell(summaryTrustEl, sumLots("trustNet"));
+  setSummaryCell(summaryDealerEl, sumLots("dealerTotalNet"));
+  setSummaryCell(summaryGrandEl, sumLots("grandTotalNet"));
+}
+
+function setSummaryCell(el, value) {
+  el.textContent = value.toLocaleString();
+  el.className = value >= 0 ? "positive" : "negative";
+}
+
 stockSelect.addEventListener("change", render);
+stockSelect.addEventListener("change", renderSummary);
 startDateInput.addEventListener("change", render);
 endDateInput.addEventListener("change", render);
 metricSelect.addEventListener("change", render);
+summaryDaysSelect.addEventListener("change", renderSummary);
 
 loadData().catch(err => {
   statusEl.textContent = "資料載入失敗：" + err.message;

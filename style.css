@@ -238,6 +238,20 @@ th:nth-child(3), td:nth-child(3) {
 td.positive { color: #c0392b; }
 td.negative { color: #27ae60; }
 
+.summary-row {
+  background: #f0f4f8;
+  font-weight: bold;
+}
+
+.summary-row td {
+  border-bottom: 2px solid #999;
+}
+
+.summary-row select {
+  font-size: 0.85rem;
+  padding: 2px 4px;
+}
+
 @media (max-width: 600px) {
   table { font-size: 0.75rem; }
   th, td { padding: 4px; }
