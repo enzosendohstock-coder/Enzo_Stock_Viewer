@@ -1,4 +1,4 @@
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwlBgAvgvp70A-eBLoQ9rid7JL3otl5jtAll2SQLzB2CclrTogb2Lj4GQIfMYoTveaeCA/exec';
+const WATCHLIST_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/watchlist';
 const CODE_PATTERN = /^[0-9]{4,6}$/;
 const STOCK_LIST_URL = 'stock-list.json';
 const MARKET_LABEL = { TWSE: '上市', TPEx: '上櫃' };
@@ -37,9 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
     showMessage(message, '送出中...', null);
 
     try {
-      const response = await fetch(APPS_SCRIPT_URL, {
+      const response = await fetch(WATCHLIST_API_URL, {
         method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           code: resolved.code,
           shortName: resolved.shortName || '',
@@ -87,7 +87,7 @@ async function loadWatchlist() {
   const tbody = document.querySelector('#watchlistTable tbody');
 
   try {
-    const res = await fetch(APPS_SCRIPT_URL);
+    const res = await fetch(WATCHLIST_API_URL);
     const result = await res.json();
 
     if (!result.success) {

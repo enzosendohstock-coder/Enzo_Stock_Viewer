@@ -1,4 +1,4 @@
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQpoDsNpSVGb9vVba-4yjbFWNYFckQV0BUwa28nTJDbHzP7jj2WTikUCI4qH0XDya9Yi0r8yZrXVVy3/pub?gid=0&single=true&output=csv";
+const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/margin";
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
@@ -26,21 +26,22 @@ function num(v) {
 
 async function loadData() {
   statusEl.textContent = "資料載入中...";
-  const response = await fetch(CSV_URL, { cache: "no-store" });
-  const text = await response.text();
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  const response = await fetch(API_URL, { cache: "no-store" });
+  const data = await response.json();
 
-  allRows = parsed.data.map(r => ({
-    date: r.Date,
-    stockCode: r.StockCode,
-    stockName: r.StockName,
-    marginBalance: num(r.MarginBalance),
-    marginQuota: num(r.MarginQuota),
-    shortBalance: num(r.ShortBalance),
-    shortQuota: num(r.ShortQuota),
-    offsetting: num(r.Offsetting),
-    sblBalance: num(r.SblBalance),
-    sblQuota: num(r.SblQuota),
+  allRows = data.map(r => ({
+    date: r.date,
+    stockCode: r.stockCode,
+    stockName: r.stockName,
+    marginBalance: num(r.marginBalance),
+    marginBalancePrev: num(r.marginBalancePrev),
+    marginQuota: num(r.marginQuota),
+    shortBalance: num(r.shortBalance),
+    shortBalancePrev: num(r.shortBalancePrev),
+    shortQuota: num(r.shortQuota),
+    offsetting: num(r.offsetting),
+    sblBalance: num(r.sblBalance),
+    sblQuota: num(r.sblQuota),
   })).filter(r => r.date && r.stockCode);
 
   populateStockOptions();
@@ -180,6 +181,8 @@ function renderTable(rows) {
   for (const r of reversed) {
     const marginRate = r.marginQuota > 0 ? ((r.marginBalance / r.marginQuota) * 100).toFixed(1) : "-";
     const shortRate = r.shortQuota > 0 ? ((r.shortBalance / r.shortQuota) * 100).toFixed(1) : "-";
+    const marginChange = Math.round((r.marginBalance - r.marginBalancePrev) / 1000);
+    const shortChange = Math.round((r.shortBalance - r.shortBalancePrev) / 1000);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
@@ -187,8 +190,10 @@ function renderTable(rows) {
       <td>${r.stockCode}</td>
       <td>${r.stockName}</td>
       <td>${Math.round(r.marginBalance / 1000).toLocaleString()}</td>
+      <td class="${marginChange >= 0 ? 'positive' : 'negative'}">${marginChange.toLocaleString()}</td>
       <td>${marginRate === "-" ? "-" : marginRate + "%"}</td>
       <td>${Math.round(r.shortBalance / 1000).toLocaleString()}</td>
+      <td class="${shortChange >= 0 ? 'positive' : 'negative'}">${shortChange.toLocaleString()}</td>
       <td>${shortRate === "-" ? "-" : shortRate + "%"}</td>
       <td>${Math.round(r.offsetting / 1000).toLocaleString()}</td>
       <td>${Math.round(r.sblBalance / 1000).toLocaleString()}</td>

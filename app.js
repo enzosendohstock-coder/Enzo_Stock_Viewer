@@ -1,4 +1,4 @@
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQg5xpvCM9c59fxG_wN6cGmsqrYtnzRn7d77gE3_QjZehcFOlOiyYtTKNxx0jM1zy-hQnb73z18cFoX/pub?gid=0&single=true&output=csv";
+const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/institutional";
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
@@ -44,18 +44,17 @@ function num(v) {
 
 async function loadData() {
   statusEl.textContent = "資料載入中...";
-  const response = await fetch(CSV_URL, { cache: "no-store" });
-  const text = await response.text();
-  const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+  const response = await fetch(API_URL, { cache: "no-store" });
+  const data = await response.json();
 
-  allRows = parsed.data.map(r => ({
-    date: r.Date,
-    stockCode: r.StockCode,
-    stockName: r.StockName,
-    foreignTotalNet: num(r.ForeignTotalNet),
-    trustNet: num(r.TrustNet),
-    dealerTotalNet: num(r.DealerTotalNet),
-    grandTotalNet: num(r.GrandTotalNet),
+  allRows = data.map(r => ({
+    date: r.date,
+    stockCode: r.stockCode,
+    stockName: r.stockName,
+    foreignTotalNet: num(r.foreignTotalNet),
+    trustNet: num(r.trustNet),
+    dealerTotalNet: num(r.dealerTotalNet),
+    grandTotalNet: num(r.grandTotalNet),
   })).filter(r => r.date && r.stockCode);
 
   populateStockOptions();
