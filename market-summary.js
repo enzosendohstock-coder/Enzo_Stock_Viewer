@@ -9,6 +9,19 @@ function netClass(value) {
   return value >= 0 ? "positive" : "negative";
 }
 
+// Worker 回傳的是原始元(新台幣)，這裡才換算成億元方便閱讀，
+// 換算/顯示邏輯放前端、Worker 只給原始數字，跟 margin.js 把股換算成張的做法一致。
+function toYi(value) {
+  return (value / 1e8).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// TWSE 原始欄位名稱「融資(交易單位)」「融券(交易單位)」沒講清楚單位是什麼(其實是張數)，
+// 這裡換成明確的單位名稱；融資金額本來就已經用仟元標示清楚，不用改。
+const CREDIT_ITEM_LABELS = {
+  "融資(交易單位)": "融資(張)",
+  "融券(交易單位)": "融券(張)",
+};
+
 function renderInstitutional(institutional) {
   if (!institutional) {
     institutionalTableBody.innerHTML = `<tr><td colspan="4">資料暫時無法取得</td></tr>`;
@@ -18,9 +31,9 @@ function renderInstitutional(institutional) {
   institutionalTableBody.innerHTML = institutional.rows.map(r => `
     <tr>
       <td>${r.name}</td>
-      <td>${r.buy.toLocaleString()}</td>
-      <td>${r.sell.toLocaleString()}</td>
-      <td class="${netClass(r.net)}">${r.net.toLocaleString()}</td>
+      <td>${toYi(r.buy)}</td>
+      <td>${toYi(r.sell)}</td>
+      <td class="${netClass(r.net)}">${toYi(r.net)}</td>
     </tr>
   `).join("");
 }
@@ -33,7 +46,7 @@ function renderCredit(credit) {
 
   creditTableBody.innerHTML = credit.rows.map(r => `
     <tr>
-      <td>${r.item}</td>
+      <td>${CREDIT_ITEM_LABELS[r.item] ?? r.item}</td>
       <td>${r.buy.toLocaleString()}</td>
       <td>${r.sell.toLocaleString()}</td>
       <td>${r.cashRedemption.toLocaleString()}</td>
