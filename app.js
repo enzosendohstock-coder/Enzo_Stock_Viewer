@@ -1,4 +1,4 @@
-const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/institutional";
+const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/institutional-with-ratio";
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
@@ -55,6 +55,8 @@ async function loadData() {
     trustNet: num(r.trustNet),
     dealerTotalNet: num(r.dealerTotalNet),
     grandTotalNet: num(r.grandTotalNet),
+    heldRatio: r.heldRatio === null || r.heldRatio === undefined ? null : num(r.heldRatio),
+    foreignNetToIssuedRatio: r.foreignNetToIssuedRatio === null || r.foreignNetToIssuedRatio === undefined ? null : num(r.foreignNetToIssuedRatio),
   })).filter(r => r.date && r.stockCode);
 
   populateStockOptions();
@@ -241,6 +243,8 @@ function renderTable(rows) {
       <td class="${r.trustNetLots >= 0 ? 'positive' : 'negative'}">${r.trustNetLots.toLocaleString()}</td>
       <td class="${r.dealerTotalNetLots >= 0 ? 'positive' : 'negative'}">${r.dealerTotalNetLots.toLocaleString()}</td>
       <td class="${r.grandDaily >= 0 ? 'positive' : 'negative'}">${r.grandDaily.toLocaleString()}</td>
+      <td>${r.heldRatio === null ? '-' : r.heldRatio.toFixed(2) + '%'}</td>
+      <td class="${r.foreignNetToIssuedRatio === null ? '' : (r.foreignNetToIssuedRatio >= 0 ? 'positive' : 'negative')}">${r.foreignNetToIssuedRatio === null ? '-' : r.foreignNetToIssuedRatio.toFixed(3) + '%'}</td>
       <td>${r.grandCumulative.toLocaleString()}</td>
     `;
     tableBody.appendChild(tr);
