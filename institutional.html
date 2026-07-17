@@ -41,43 +41,45 @@
     <canvas id="chart"></canvas>
   </div>
 
-  <table id="dataTable">
-    <thead>
-      <tr>
-        <th>日期</th>
-        <th>股票代號</th>
-        <th>股票名稱</th>
-        <th>外資</th>
-        <th>投信</th>
-        <th>自營</th>
-        <th>買賣超</th>
-        <th>外資持股比率</th>
-        <th>外資買賣超佔股本</th>
-        <th id="cumulativeHeader">累計</th>
-      </tr>
-      <tr class="summary-row">
-        <td>
-          <select id="summaryDays">
-            <option value="5">近5日</option>
-            <option value="10">近10日</option>
-            <option value="20">近20日</option>
-            <option value="30">近30日</option>
-            <option value="60">近60日</option>
-          </select>
-        </td>
-        <td></td>
-        <td id="summaryRange">合計</td>
-        <td id="summaryForeign"></td>
-        <td id="summaryTrust"></td>
-        <td id="summaryDealer"></td>
-        <td id="summaryGrand"></td>
-        <td></td>
-        <td></td>
-        <td></td>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="table-scroll">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>股票代號</th>
+          <th>股票名稱</th>
+          <th>外資</th>
+          <th>投信</th>
+          <th>自營</th>
+          <th>買賣超</th>
+          <th>外資持股比率</th>
+          <th>外資買賣超佔股本</th>
+          <th id="cumulativeHeader">累計</th>
+        </tr>
+        <tr class="summary-row">
+          <td>
+            <select id="summaryDays">
+              <option value="5">近5日</option>
+              <option value="10">近10日</option>
+              <option value="20">近20日</option>
+              <option value="30">近30日</option>
+              <option value="60">近60日</option>
+            </select>
+          </td>
+          <td></td>
+          <td id="summaryRange">合計</td>
+          <td id="summaryForeign"></td>
+          <td id="summaryTrust"></td>
+          <td id="summaryDealer"></td>
+          <td id="summaryGrand"></td>
+          <td></td>
+          <td></td>
+          <td></td>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script src="app.js"></script>
   <script src="nav.js"></script>
