@@ -4,6 +4,9 @@ const marketSummaryStatusEl = document.getElementById("marketSummaryStatus");
 const institutionalTableBody = document.querySelector("#institutionalTable tbody");
 const creditTableBody = document.querySelector("#creditTable tbody");
 const futuresTableBody = document.querySelector("#futuresTable tbody");
+const institutionalDateEl = document.getElementById("institutionalDate");
+const creditDateEl = document.getElementById("creditDate");
+const futuresDateEl = document.getElementById("futuresDate");
 
 function netClass(value) {
   return value >= 0 ? "positive" : "negative";
@@ -98,6 +101,13 @@ function latestDate(...dates) {
   return dates.filter(Boolean).sort().pop() ?? null;
 }
 
+// 三大法人金額統計表、信用交易統計、期貨/選擇權三大法人，各自來源公布時間不同，
+// 同一時間點抓到的資料常常不是同一天(例如三大法人已經有今天的、信用交易統計還停在昨天)，
+// 所以每張表自己標示自己實際拿到的資料日期，不能只看首頁最上面那個「交易日」就以為全部一致。
+function setSectionDate(el, date) {
+  el.textContent = date ? `(資料日期：${date})` : "";
+}
+
 async function loadMarketSummary() {
   marketSummaryStatusEl.textContent = "大盤收盤資訊載入中...";
 
@@ -109,6 +119,10 @@ async function loadMarketSummary() {
     renderCredit(data.credit);
     renderFutures(data.futures, data.options);
 
+    setSectionDate(institutionalDateEl, data.institutional?.date);
+    setSectionDate(creditDateEl, data.credit?.date);
+    setSectionDate(futuresDateEl, latestDate(data.futures?.date, data.options?.date));
+
     const date = latestDate(data.institutional?.date, data.credit?.date, data.futures?.date, data.options?.date);
     marketSummaryStatusEl.innerHTML = date
       ? `<span>大盤收盤資訊，交易日：<span class="trade-date">${date}</span></span><span class="last-updated">（最後更新：${new Date().toLocaleString("zh-TW")}）</span>`
@@ -118,6 +132,9 @@ async function loadMarketSummary() {
     renderInstitutional(null);
     renderCredit(null);
     renderFutures(null, null);
+    setSectionDate(institutionalDateEl, null);
+    setSectionDate(creditDateEl, null);
+    setSectionDate(futuresDateEl, null);
   }
 }
 
