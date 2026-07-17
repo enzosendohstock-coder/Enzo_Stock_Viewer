@@ -2,6 +2,7 @@ const NAV_LINKS = [
   { href: 'index.html', label: '首頁' },
   { href: 'institutional.html', label: '三大法人買賣超' },
   { href: 'margin.html', label: '融資融券借券' },
+  { href: 'futures-institutional.html', label: '期貨三大法人' },
   { href: 'watchlist.html', label: '新增追蹤股票' },
 ];
 

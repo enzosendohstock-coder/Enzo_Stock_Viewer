@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>期貨三大法人</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>期貨三大法人</h1>
+
+  <p class="placeholder-text">
+    資料來源是期交所每日公布的三大法人report，每天只會有一筆(全天日盤+夜盤合併)，
+    從開始儲存這天起才會累積歷史，沒辦法回補更早的資料。
+  </p>
+
+  <div class="controls">
+    <label>
+      契約
+      <select id="contractSelect">
+        <option value="TX">臺股期貨(大台指期)</option>
+        <option value="MTX">小型臺指期貨(小台指期)</option>
+        <option value="TXO">臺指選擇權</option>
+      </select>
+    </label>
+    <label>
+      指標
+      <select id="metricSelect">
+        <option value="netOpenInterest">淨未平倉口數</option>
+        <option value="netVolume">淨口數</option>
+        <option value="netValue">淨契約金額(仟元)</option>
+      </select>
+    </label>
+    <label>
+      開始日期
+      <input type="date" id="startDate">
+    </label>
+    <label>
+      結束日期
+      <input type="date" id="endDate">
+    </label>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="table-scroll">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>自營商</th>
+          <th>投信</th>
+          <th>外資及陸資</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="futures-institutional.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
