@@ -15,6 +15,11 @@ function toYi(value) {
   return (value / 1e8).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// 期貨/選擇權的淨契約金額原始單位是仟元(千元)，這裡換算成億元跟其他金額欄位一致。
+function toYiFromThousands(value) {
+  return (value / 1e5).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // TWSE 原始欄位名稱「融資(交易單位)」「融券(交易單位)」沒講清楚單位是什麼(其實是張數)，
 // 這裡換成明確的單位名稱；融資金額本來就已經用仟元標示清楚，不用改。
 const CREDIT_ITEM_LABELS = {
@@ -31,9 +36,9 @@ function renderInstitutional(institutional) {
   institutionalTableBody.innerHTML = institutional.rows.map(r => `
     <tr>
       <td>${r.name}</td>
+      <td class="${netClass(r.net)}">${toYi(r.net)}</td>
       <td>${toYi(r.buy)}</td>
       <td>${toYi(r.sell)}</td>
-      <td class="${netClass(r.net)}">${toYi(r.net)}</td>
     </tr>
   `).join("");
 }
@@ -47,11 +52,11 @@ function renderCredit(credit) {
   creditTableBody.innerHTML = credit.rows.map(r => `
     <tr>
       <td>${CREDIT_ITEM_LABELS[r.item] ?? r.item}</td>
+      <td>${r.todayBalance.toLocaleString()}</td>
+      <td>${r.prevBalance.toLocaleString()}</td>
+      <td>${r.cashRedemption.toLocaleString()}</td>
       <td>${r.buy.toLocaleString()}</td>
       <td>${r.sell.toLocaleString()}</td>
-      <td>${r.cashRedemption.toLocaleString()}</td>
-      <td>${r.prevBalance.toLocaleString()}</td>
-      <td>${r.todayBalance.toLocaleString()}</td>
     </tr>
   `).join("");
 }
@@ -82,9 +87,9 @@ function renderFutures(futures, options) {
     <tr>
       <td>${r.contractName}</td>
       <td>${r.identity}</td>
-      <td class="${netClass(r.netVolume)}">${r.netVolume.toLocaleString()}</td>
-      <td class="${netClass(r.netValue)}">${r.netValue.toLocaleString()}</td>
       <td class="${netClass(r.netOpenInterest)}">${r.netOpenInterest.toLocaleString()}</td>
+      <td class="${netClass(r.netVolume)}">${r.netVolume.toLocaleString()}</td>
+      <td class="${netClass(r.netValue)}">${toYiFromThousands(r.netValue)}</td>
     </tr>
   `).join("");
 }
