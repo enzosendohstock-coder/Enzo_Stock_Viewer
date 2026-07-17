@@ -22,24 +22,14 @@ const CREDIT_ITEM_LABELS = {
   "融券(交易單位)": "融券(張)",
 };
 
-function renderInstitutional(listed, otc) {
-  const rows = [];
-
-  if (listed) {
-    for (const r of listed.rows) rows.push({ market: "上市", ...r });
-  }
-  if (otc) {
-    for (const r of otc.rows) rows.push({ market: "上櫃", ...r });
-  }
-
-  if (rows.length === 0) {
-    institutionalTableBody.innerHTML = `<tr><td colspan="5">資料暫時無法取得</td></tr>`;
+function renderInstitutional(institutional) {
+  if (!institutional) {
+    institutionalTableBody.innerHTML = `<tr><td colspan="4">資料暫時無法取得</td></tr>`;
     return;
   }
 
-  institutionalTableBody.innerHTML = rows.map(r => `
+  institutionalTableBody.innerHTML = institutional.rows.map(r => `
     <tr>
-      <td>${r.market}</td>
       <td>${r.name}</td>
       <td>${toYi(r.buy)}</td>
       <td>${toYi(r.sell)}</td>
@@ -84,7 +74,7 @@ function renderFutures(futures, options) {
   }
 
   if (rows.length === 0) {
-    futuresTableBody.innerHTML = `<tr><td colspan="4">資料暫時無法取得</td></tr>`;
+    futuresTableBody.innerHTML = `<tr><td colspan="5">資料暫時無法取得</td></tr>`;
     return;
   }
 
@@ -94,6 +84,7 @@ function renderFutures(futures, options) {
       <td>${r.identity}</td>
       <td class="${netClass(r.netVolume)}">${r.netVolume.toLocaleString()}</td>
       <td class="${netClass(r.netValue)}">${r.netValue.toLocaleString()}</td>
+      <td class="${netClass(r.netOpenInterest)}">${r.netOpenInterest.toLocaleString()}</td>
     </tr>
   `).join("");
 }
@@ -109,23 +100,17 @@ async function loadMarketSummary() {
     const response = await fetch(MARKET_SUMMARY_API_URL, { cache: "no-store" });
     const data = await response.json();
 
-    renderInstitutional(data.institutional, data.institutionalOtc);
+    renderInstitutional(data.institutional);
     renderCredit(data.credit);
     renderFutures(data.futures, data.options);
 
-    const date = latestDate(
-      data.institutional?.date,
-      data.institutionalOtc?.date,
-      data.credit?.date,
-      data.futures?.date,
-      data.options?.date,
-    );
+    const date = latestDate(data.institutional?.date, data.credit?.date, data.futures?.date, data.options?.date);
     marketSummaryStatusEl.textContent = date
       ? `大盤收盤資訊，交易日：${date}（最後更新：${new Date().toLocaleString("zh-TW")}）`
       : "查無最近交易日的大盤收盤資訊。";
   } catch (err) {
     marketSummaryStatusEl.textContent = "大盤收盤資訊載入失敗，請稍後再試。";
-    renderInstitutional(null, null);
+    renderInstitutional(null);
     renderCredit(null);
     renderFutures(null, null);
   }
