@@ -12,6 +12,12 @@ function netClass(value) {
   return value >= 0 ? "positive" : "negative";
 }
 
+// checkCnt 是「這筆資料連續幾次重查數字都沒變」，達到穩定門檻(3)算已定案(綠)，
+// 還沒到就是還在確認中(紅)，跟 netClass 的漲跌配色是不同語意，用獨立的 class 名稱避免混淆。
+function cntClass(cnt) {
+  return cnt >= 3 ? "cnt-stable" : "cnt-pending";
+}
+
 // Worker 回傳的是原始元(新台幣)，這裡才換算成億元方便閱讀，
 // 換算/顯示邏輯放前端、Worker 只給原始數字，跟 margin.js 把股換算成張的做法一致。
 function toYi(value) {
@@ -82,7 +88,7 @@ function renderFutures(futures, options) {
   }
 
   if (rows.length === 0) {
-    futuresTableBody.innerHTML = `<tr><td colspan="5">資料暫時無法取得</td></tr>`;
+    futuresTableBody.innerHTML = `<tr><td colspan="6">資料暫時無法取得</td></tr>`;
     return;
   }
 
@@ -93,6 +99,7 @@ function renderFutures(futures, options) {
       <td class="${netClass(r.netOpenInterest)}">${r.netOpenInterest.toLocaleString()}</td>
       <td class="${netClass(r.netVolume)}">${r.netVolume.toLocaleString()}</td>
       <td class="${netClass(r.netValue)}">${toYiFromThousands(r.netValue)}</td>
+      <td class="${cntClass(r.checkCnt)}">${r.checkCnt}</td>
     </tr>
   `).join("");
 }
