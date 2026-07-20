@@ -29,11 +29,18 @@ function toYiFromThousands(value) {
   return (value / 1e5).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+// 張數原始單位太細(近千萬張)，換算成萬張跟金額換算成億元是同樣的道理。
+function toWanZhang(value) {
+  return (value / 1e4).toLocaleString("zh-TW", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 // TWSE 原始欄位名稱「融資(交易單位)」「融券(交易單位)」沒講清楚單位是什麼(其實是張數)，
-// 這裡換成明確的單位名稱；融資金額本來就已經用仟元標示清楚，不用改。
-const CREDIT_ITEM_LABELS = {
-  "融資(交易單位)": "融資(張)",
-  "融券(交易單位)": "融券(張)",
+// 這裡連同單位換算一起處理：張數換算成萬張、金額換算成億元，標籤要跟著換算邏輯一起改，
+// 不然會出現「數字已經換算過、但標籤還寫換算前的單位」的不一致。
+const CREDIT_ITEM_CONFIG = {
+  "融資(交易單位)": { label: "融資(萬張)", format: toWanZhang },
+  "融券(交易單位)": { label: "融券(萬張)", format: toWanZhang },
+  "融資金額(仟元)": { label: "融資金額(億元)", format: toYiFromThousands },
 };
 
 function renderInstitutional(institutional) {
@@ -58,16 +65,21 @@ function renderCredit(credit) {
     return;
   }
 
-  creditTableBody.innerHTML = credit.rows.map(r => `
+  creditTableBody.innerHTML = credit.rows.map(r => {
+    const config = CREDIT_ITEM_CONFIG[r.item];
+    const label = config?.label ?? r.item;
+    const fmt = config?.format ?? (v => v.toLocaleString());
+    return `
     <tr>
-      <td>${CREDIT_ITEM_LABELS[r.item] ?? r.item}</td>
-      <td>${r.todayBalance.toLocaleString()}</td>
-      <td>${r.prevBalance.toLocaleString()}</td>
-      <td>${r.cashRedemption.toLocaleString()}</td>
-      <td>${r.buy.toLocaleString()}</td>
-      <td>${r.sell.toLocaleString()}</td>
+      <td>${label}</td>
+      <td>${fmt(r.todayBalance)}</td>
+      <td>${fmt(r.prevBalance)}</td>
+      <td>${fmt(r.cashRedemption)}</td>
+      <td>${fmt(r.buy)}</td>
+      <td>${fmt(r.sell)}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function renderFutures(futures, options) {
