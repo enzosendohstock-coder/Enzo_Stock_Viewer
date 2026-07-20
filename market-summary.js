@@ -69,11 +69,13 @@ function renderCredit(credit) {
     const config = CREDIT_ITEM_CONFIG[r.item];
     const label = config?.label ?? r.item;
     const fmt = config?.format ?? (v => v.toLocaleString());
+    const change = r.todayBalance - r.prevBalance;
     return `
     <tr>
       <td>${label}</td>
       <td>${fmt(r.todayBalance)}</td>
       <td>${fmt(r.prevBalance)}</td>
+      <td class="${netClass(change)}">${fmt(change)}</td>
       <td>${fmt(r.cashRedemption)}</td>
       <td>${fmt(r.buy)}</td>
       <td>${fmt(r.sell)}</td>
