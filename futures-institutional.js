@@ -41,6 +41,7 @@ async function loadData() {
     netVolume: num(r.netVolume),
     netValue: num(r.netValue),
     netOpenInterest: num(r.netOpenInterest),
+    checkCnt: num(r.checkCnt),
   })).filter(r => r.date && r.contractCode);
 
   populateDateRange();
@@ -125,9 +126,20 @@ function renderChart(rows, metricKey) {
   chart = new Chart(document.getElementById("chart"), config);
 }
 
+// checkCnt 是「這筆資料連續幾次重查數字都沒變」，達到穩定門檻(3)算已定案(綠)，
+// 還沒到就是還在確認中、之後可能還會變動(紅)。同一天 3 個身份別各自有自己的 checkCnt，
+// 這裡取最小值當這一天的整體穩定度指標(只要有任一身份別還沒穩定，就算這天還在確認中)。
+function cntClass(cnt) {
+  return cnt >= 3 ? "cnt-stable" : "cnt-pending";
+}
+
 function renderTable(rows, metricKey) {
   const reversed = [...rows].reverse();
-  tableBody.innerHTML = reversed.map(r => `
+  tableBody.innerHTML = reversed.map(r => {
+    const cnts = IDENTITIES.map(identity => r[identity]?.checkCnt).filter(c => c !== undefined);
+    const minCnt = cnts.length > 0 ? Math.min(...cnts) : null;
+
+    return `
     <tr>
       <td>${r.date}</td>
       ${IDENTITIES.map(identity => {
@@ -136,8 +148,10 @@ function renderTable(rows, metricKey) {
         const value = cell[metricKey];
         return `<td class="${value >= 0 ? 'positive' : 'negative'}">${value.toLocaleString()}</td>`;
       }).join("")}
+      <td class="${minCnt === null ? '' : cntClass(minCnt)}">${minCnt === null ? '-' : minCnt}</td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 }
 
 contractSelect.addEventListener("change", render);

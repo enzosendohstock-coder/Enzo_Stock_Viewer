@@ -289,6 +289,17 @@ td.cnt-pending { color: #c0392b; font-weight: bold; }
   padding: 2px 4px;
 }
 
+.backfill-btn {
+  font-size: 0.8rem;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+
+.backfill-btn:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 @media (max-width: 600px) {
   table { font-size: 0.75rem; }
   th, td { padding: 4px; }

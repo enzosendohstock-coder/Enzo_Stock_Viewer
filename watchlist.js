@@ -1,4 +1,5 @@
 const WATCHLIST_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/watchlist';
+const BACKFILL_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/backfill';
 const CODE_PATTERN = /^[0-9]{4,6}$/;
 const STOCK_LIST_URL = 'stock-list.json';
 const MARKET_LABEL = { TWSE: '上市', TPEx: '上櫃' };
@@ -17,6 +18,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadStockList(datalist);
   loadWatchlist();
+
+  document.querySelector('#watchlistTable tbody').addEventListener('click', async (e) => {
+    const btn = e.target.closest('.backfill-btn');
+    if (!btn) return;
+
+    const code = btn.dataset.code;
+    btn.disabled = true;
+    const originalText = btn.textContent;
+    btn.textContent = '觸發中...';
+
+    try {
+      const response = await fetch(BACKFILL_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stockCode: code }),
+      });
+      const result = await response.json();
+      alert(result.message);
+    } catch (err) {
+      alert('觸發失敗，請檢查網路連線後再試一次。');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  });
 
   codeInput.addEventListener('input', () => {
     updatePreview(preview, codeInput.value.trim());
@@ -100,7 +126,12 @@ async function loadWatchlist() {
     tbody.innerHTML = '';
     for (const item of list) {
       const tr = document.createElement('tr');
-      tr.innerHTML = `<td>${item.code}</td><td>${item.shortName}</td><td>${item.fullName}</td>`;
+      tr.innerHTML = `
+        <td>${item.code}</td>
+        <td>${item.shortName}</td>
+        <td>${item.fullName}</td>
+        <td><button type="button" class="backfill-btn" data-code="${item.code}">補資料</button></td>
+      `;
       tbody.appendChild(tr);
     }
 
