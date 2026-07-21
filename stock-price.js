@@ -5,10 +5,21 @@ const stockSelect = document.getElementById("stockSelect");
 const startDateInput = document.getElementById("startDate");
 const endDateInput = document.getElementById("endDate");
 const tableBody = document.querySelector("#dataTable tbody");
+const priceInfoEl = document.getElementById("priceInfo");
+const volumeInfoEl = document.getElementById("volumeInfo");
 
 let allRows = [];
+let currentRows = [];
 let priceChart = null;
 let volumeChart = null;
+
+// 股價、成交量的 Y 軸數字長度差很多(股價 4 位數 vs 成交量帶千分位逗號可能到 6~7 位數)，
+// 兩張圖各自根據自己的文字寬度決定繪圖區域起始位置，寬度不一樣就會對不齊。
+// 強制兩邊的 Y 軸固定同一個寬度，不管文字內容多長，兩張圖的繪圖區域就一定會對齊。
+const Y_AXIS_WIDTH = 70;
+function fixYAxisWidth(scale) {
+  scale.width = Y_AXIS_WIDTH;
+}
 
 function num(v) {
   const n = Number(v);
@@ -65,6 +76,15 @@ function populateDateRange() {
   endDateInput.max = dates[dates.length - 1];
 }
 
+// 跟 institutional.html/margin.html 的圖表日期格式一致(西元年後兩碼+MMdd，例如 260721)。
+function shortDate(timestamp) {
+  const d = new Date(timestamp);
+  const y = String(d.getFullYear()).slice(2);
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return y + m + day;
+}
+
 function getFilteredRows() {
   const stockCode = stockSelect.value;
   const start = startDateInput.value;
@@ -77,10 +97,120 @@ function getFilteredRows() {
 
 function render() {
   const rows = getFilteredRows();
+  currentRows = rows;
+  crosshairState.index = null;
   renderPriceChart(rows);
   renderVolumeChart(rows);
   renderTable(rows);
+  updateInfoPanels();
 }
+
+// 開高低收、成交量的數字固定顯示在圖表上方/下方(而不是滑鼠移過去才彈出的浮動 tooltip)，
+// 跟著十字準線即時更新；沒有滑鼠停留(index 是 null)時預設顯示最新一天的數字。
+function updateInfoPanels() {
+  const index = crosshairState.index ?? currentRows.length - 1;
+  const row = currentRows[index];
+  if (!row) {
+    priceInfoEl.innerHTML = "";
+    volumeInfoEl.innerHTML = "";
+    return;
+  }
+
+  const changeClass = row.change >= 0 ? "positive" : "negative";
+  const changeSign = row.change > 0 ? "+" : "";
+  priceInfoEl.innerHTML = `
+    <span class="label">${row.date}</span>
+    <span>開 ${row.open.toFixed(2)}</span>
+    <span>高 ${row.high.toFixed(2)}</span>
+    <span>低 ${row.low.toFixed(2)}</span>
+    <span>收 ${row.close.toFixed(2)}</span>
+    <span class="${changeClass}">漲跌 ${changeSign}${row.change.toFixed(2)}</span>
+  `;
+
+  const lots = Math.round(row.volume / 1000);
+  const yi = (row.turnoverValue / 1e8).toFixed(2);
+  volumeInfoEl.innerHTML = `
+    <span class="label">成交量</span>
+    <span>${lots.toLocaleString()} 張</span>
+    <span>${yi} 億元</span>
+  `;
+}
+
+// 十字準線：股價圖跟成交量圖是兩個獨立的 Chart 實例，滑鼠移到任一張圖上時，
+// 用同一個共用的 index 狀態同步在兩張圖上畫垂直線指到同一天，股價圖上再加一條
+// 水平線標出滑鼠對應那天的價位(實際數字改看上方固定的資訊列，不用另外畫價格標籤)。
+const crosshairState = { index: null };
+
+// 更新完共用狀態後，「觸發事件的這張圖」用 args.changed = true 請 Chart.js 自己重繪
+// (官方建議的做法)，「另一張圖」則要自己手動重繪，但不能在事件處理中同步呼叫 draw()——
+// 這張圖當下還在處理事件的過程中，同步重繪會打斷 Chart.js 自己的內部流程，觀察到的現象是
+// 事件被重複觸發、crosshairState 又被重置回 null，改用 requestAnimationFrame 延後到下一影格。
+function syncOtherChart(current) {
+  const other = current === priceChart ? volumeChart : priceChart;
+  if (other) {
+    requestAnimationFrame(() => other.draw());
+  }
+}
+
+const crosshairPlugin = {
+  id: "crosshair",
+  afterEvent(chart, args) {
+    const event = args.event;
+    if (event.type === "mousemove" || event.type === "mousedown") {
+      const points = chart.getElementsAtEventForMode(event, "index", { intersect: false }, true);
+      if (points.length > 0 && points[0].index !== crosshairState.index) {
+        crosshairState.index = points[0].index;
+        args.changed = true;
+        syncOtherChart(chart);
+        updateInfoPanels();
+      }
+    } else if (event.type === "mouseout") {
+      if (crosshairState.index !== null) {
+        crosshairState.index = null;
+        args.changed = true;
+        syncOtherChart(chart);
+        updateInfoPanels();
+      }
+    }
+  },
+  afterDraw(chart) {
+    const index = crosshairState.index;
+    if (index === null) return;
+
+    const meta = chart.getDatasetMeta(0);
+    const point = meta.data[index];
+    if (!point) return;
+
+    const { ctx, chartArea } = chart;
+    const x = point.x;
+
+    ctx.save();
+    ctx.strokeStyle = "#7f8c8d";
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(x, chartArea.top);
+    ctx.lineTo(x, chartArea.bottom);
+    ctx.stroke();
+
+    // 水平線只在股價圖畫，成交量圖只需要對到同一天的垂直線。實際數字改看上方固定的
+    // 資訊列(updateInfoPanels)，不用再另外畫一個浮動的價格標籤框。
+    if (chart === priceChart) {
+      const row = currentRows[index];
+      if (row) {
+        const y = chart.scales.y.getPixelForValue(row.close);
+
+        ctx.beginPath();
+        ctx.moveTo(chartArea.left, y);
+        ctx.lineTo(chartArea.right, y);
+        ctx.stroke();
+      }
+    }
+
+    ctx.restore();
+  },
+};
 
 // 股價、成交量分成兩個獨立的 canvas 上下疊放，而不是疊在同一個繪圖區塊用左右副座標軸——
 // Chart.js 沒有子圖功能，疊在同一區塊的話成交量的柱狀圖會直接蓋在蠟燭圖上面，混在一起很難看，
@@ -114,6 +244,12 @@ function renderPriceChart(rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      // 開高低收改用上方固定的資訊列顯示(updateInfoPanels)，不需要浮動 tooltip 跟圖例了。
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+      },
       scales: {
         x: {
           type: "timeseries",
@@ -121,9 +257,10 @@ function renderPriceChart(rows) {
           ticks: { display: false },
           grid: { display: false },
         },
-        y: { position: "left", title: { display: true, text: "股價" } },
+        y: { position: "left", title: { display: true, text: "股價" }, afterFit: fixYAxisWidth },
       },
     },
+    plugins: [crosshairPlugin],
   };
 
   if (priceChart) {
@@ -153,15 +290,27 @@ function renderVolumeChart(rows) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { enabled: false },
+      },
       scales: {
         x: {
           type: "timeseries",
           time: { unit: "day" },
-          ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 },
+          ticks: {
+            maxRotation: 90,
+            minRotation: 90,
+            autoSkip: true,
+            maxTicksLimit: 30,
+            callback: value => shortDate(value),
+          },
         },
-        y: { position: "left", title: { display: true, text: "成交量(張)" } },
+        y: { position: "left", title: { display: true, text: "成交量(張)" }, afterFit: fixYAxisWidth },
       },
     },
+    plugins: [crosshairPlugin],
   };
 
   if (volumeChart) {

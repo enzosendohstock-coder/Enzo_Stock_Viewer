@@ -251,6 +251,23 @@ h1 {
   height: 120px;
 }
 
+/* 股價/成交量的即時數值(開高低收、漲跌、成交量)固定顯示在圖表上方/下方，
+   不用滑鼠移過去才彈出浮動 tooltip，跟著十字準線即時更新。 */
+.chart-info {
+  font-size: 0.85rem;
+  padding: 6px 4px;
+  color: #444;
+}
+
+.chart-info .label {
+  font-weight: bold;
+  margin-right: 8px;
+}
+
+.chart-info span + span {
+  margin-left: 12px;
+}
+
 .table-scroll {
   width: 100%;
   overflow-x: auto;
