@@ -24,6 +24,16 @@ let allRows = [];
 let chart = null;
 let recentDatesSet = new Set();
 
+// tooltip 預設會跟著滑鼠游標的 x/y 一起移動，滑鼠移到圖表中段時常常擋住當下正在看的資料點。
+// 註冊一個自訂定位方式：x 還是跟著滑鼠對到的那個資料點(這樣才知道游標指到哪一天)，
+// y 固定貼在繪圖區上緣，不會再遮住下面的線/柱狀圖。
+Chart.Tooltip.positioners.top = function (items, eventPosition) {
+  // 用一般 function(不是箭頭函式)是為了讓 this 正確綁定成 Chart.js 呼叫時傳進來的 tooltip 實例，
+  // this.chart 是官方文件記載的存取方式。
+  const x = items.length ? items[0].element.x : eventPosition.x;
+  return { x, y: this.chart.chartArea.top + 10 };
+};
+
 function computeRecentRows() {
   const stockCode = stockSelect.value;
   const days = Number(summaryDaysSelect.value);
@@ -259,6 +269,10 @@ function renderChart(rows, metricKey, metricLabel) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      // tooltip 固定貼在圖表上緣(用上面註冊的自訂定位方式)，不會再跟著滑鼠垂直移動、擋住資料。
+      plugins: {
+        tooltip: { position: "top" },
+      },
       scales: {
         x: { stacked, ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
         y: {
