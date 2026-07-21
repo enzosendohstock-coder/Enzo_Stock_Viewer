@@ -12,6 +12,7 @@ const summaryForeignEl = document.getElementById("summaryForeign");
 const summaryTrustEl = document.getElementById("summaryTrust");
 const summaryDealerEl = document.getElementById("summaryDealer");
 const summaryGrandEl = document.getElementById("summaryGrand");
+const chartInfoEl = document.getElementById("chartInfo");
 
 const METRIC_FIELDS = {
   grand: { field: "grandTotalNet", label: "三大法人合計" },
@@ -23,15 +24,65 @@ const METRIC_FIELDS = {
 let allRows = [];
 let chart = null;
 let recentDatesSet = new Set();
+let currentRows = [];
+let currentMetricKey = "grand";
+let currentMetricLabel = "三大法人合計";
 
-// tooltip 預設會跟著滑鼠游標的 x/y 一起移動，滑鼠移到圖表中段時常常擋住當下正在看的資料點。
-// 註冊一個自訂定位方式：x 還是跟著滑鼠對到的那個資料點(這樣才知道游標指到哪一天)，
-// y 固定貼在繪圖區上緣，不會再遮住下面的線/柱狀圖。
-Chart.Tooltip.positioners.top = function (items, eventPosition) {
-  // 用一般 function(不是箭頭函式)是為了讓 this 正確綁定成 Chart.js 呼叫時傳進來的 tooltip 實例，
-  // this.chart 是官方文件記載的存取方式。
-  const x = items.length ? items[0].element.x : eventPosition.x;
-  return { x, y: this.chart.chartArea.top + 10 };
+// 開高低收那類固定資訊列的做法(不用浮動 tooltip，改成固定顯示在圖表上方、跟著十字準線
+// 即時更新)，跟 stock-price.html 是同一套設計。這裡只有一張圖，不用像 stock-price.html
+// 那樣處理兩張圖之間的同步。
+const hoverState = { index: null };
+
+function fmtLots(v) {
+  const cls = v >= 0 ? "positive" : "negative";
+  return `<span class="${cls}">${v.toLocaleString()}</span>`;
+}
+
+function updateChartInfo() {
+  const index = hoverState.index ?? currentRows.length - 1;
+  const row = currentRows[index];
+  if (!row) {
+    chartInfoEl.innerHTML = "";
+    return;
+  }
+
+  if (currentMetricKey === "grand") {
+    chartInfoEl.innerHTML = `
+      <span class="label">${row.date}</span>
+      <span>外資 ${fmtLots(row.foreignTotalNetLots)}</span>
+      <span>投信 ${fmtLots(row.trustNetLots)}</span>
+      <span>自營 ${fmtLots(row.dealerTotalNetLots)}</span>
+      <span>合計 ${fmtLots(row.grandDaily)}</span>
+      <span>三大法人合計累計 ${fmtLots(row.grandCumulative)}</span>
+      <span>外資累計 ${fmtLots(row.foreignCumulative)}</span>
+      <span>投信累計 ${fmtLots(row.trustCumulative)}</span>
+    `;
+  } else {
+    chartInfoEl.innerHTML = `
+      <span class="label">${row.date}</span>
+      <span>${currentMetricLabel} ${fmtLots(row.metricDaily)}</span>
+      <span>${currentMetricLabel}累計 ${fmtLots(row.metricCumulative)}</span>
+    `;
+  }
+}
+
+const chartInfoPlugin = {
+  id: "chartInfo",
+  afterEvent(chartInstance, args) {
+    const event = args.event;
+    if (event.type === "mousemove" || event.type === "mousedown") {
+      const points = chartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
+      if (points.length > 0 && points[0].index !== hoverState.index) {
+        hoverState.index = points[0].index;
+        updateChartInfo();
+      }
+    } else if (event.type === "mouseout") {
+      if (hoverState.index !== null) {
+        hoverState.index = null;
+        updateChartInfo();
+      }
+    }
+  },
 };
 
 function computeRecentRows() {
@@ -149,8 +200,14 @@ function render() {
     };
   });
 
+  currentRows = withComputed;
+  currentMetricKey = metricSelect.value;
+  currentMetricLabel = metric.label;
+  hoverState.index = null;
+
   renderChart(withComputed, metricSelect.value, metric.label);
   renderTable(withComputed);
+  updateChartInfo();
 }
 
 function shortDate(dateStr) {
@@ -269,9 +326,9 @@ function renderChart(rows, metricKey, metricLabel) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      // tooltip 固定貼在圖表上緣(用上面註冊的自訂定位方式)，不會再跟著滑鼠垂直移動、擋住資料。
+      // 關掉浮動 tooltip，數字改用上方固定的 chartInfo 資訊列顯示(見 updateChartInfo)。
       plugins: {
-        tooltip: { position: "top" },
+        tooltip: { enabled: false },
       },
       scales: {
         x: { stacked, ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
@@ -289,6 +346,7 @@ function renderChart(rows, metricKey, metricLabel) {
         y1: { position: "right", title: { display: true, text: `${metricLabel}累計買賣超(張)` }, grid: { drawOnChartArea: false } },
       },
     },
+    plugins: [chartInfoPlugin],
   };
 
   if (chart) {
