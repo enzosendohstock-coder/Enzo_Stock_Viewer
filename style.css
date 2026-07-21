@@ -240,6 +240,17 @@ h1 {
   margin-bottom: 24px;
 }
 
+/* 股價圖表跟成交量圖表用兩個獨立的 canvas 上下疊放(Chart.js 沒有子圖功能)，
+   股價區塊拿掉底部間距、跟成交量區塊直接相接，兩張圖的 x 軸日期才會對得整齊。 */
+.price-chart-wrap {
+  height: 320px;
+  margin-bottom: 0;
+}
+
+.volume-chart-wrap {
+  height: 120px;
+}
+
 .table-scroll {
   width: 100%;
   overflow-x: auto;

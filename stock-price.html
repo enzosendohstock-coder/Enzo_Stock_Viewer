@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>個股股價</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>個股股價</h1>
+
+  <div class="controls">
+    <label>
+      股票代號
+      <select id="stockSelect"></select>
+    </label>
+    <label>
+      開始日期
+      <input type="date" id="startDate">
+    </label>
+    <label>
+      結束日期
+      <input type="date" id="endDate">
+    </label>
+  </div>
+
+  <div id="status"></div>
+
+  <div class="chart-wrap price-chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+  <div class="chart-wrap volume-chart-wrap">
+    <canvas id="volumeChart"></canvas>
+  </div>
+
+  <div class="table-scroll">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>開盤</th>
+          <th>最高</th>
+          <th>最低</th>
+          <th>收盤</th>
+          <th>漲跌</th>
+          <th>成交量(張)</th>
+          <th>成交金額(億元)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="stock-price.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
