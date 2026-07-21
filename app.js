@@ -109,6 +109,10 @@ function render() {
 
   let grandCumulative = 0;
   let metricCumulative = 0;
+  // 三大法人合計檢視模式下，折線圖除了三大法人合計累計，還要多疊外資、投信各自的累計線，
+  // 所以這兩個也要單獨累加，不能只靠 metricCumulative(那個只會累加目前下拉選單選到的單一類別)。
+  let foreignCumulative = 0;
+  let trustCumulative = 0;
   const withComputed = rows.map(r => {
     const grandDaily = Math.round(r.grandTotalNet / 1000);
     grandCumulative += grandDaily;
@@ -116,15 +120,22 @@ function render() {
     const metricDaily = Math.round(r[metric.field] / 1000);
     metricCumulative += metricDaily;
 
+    const foreignTotalNetLots = Math.round(r.foreignTotalNet / 1000);
+    const trustNetLots = Math.round(r.trustNet / 1000);
+    foreignCumulative += foreignTotalNetLots;
+    trustCumulative += trustNetLots;
+
     return {
       ...r,
       grandDaily,
       grandCumulative,
       metricDaily,
       metricCumulative,
-      foreignTotalNetLots: Math.round(r.foreignTotalNet / 1000),
-      trustNetLots: Math.round(r.trustNet / 1000),
+      foreignTotalNetLots,
+      trustNetLots,
       dealerTotalNetLots: Math.round(r.dealerTotalNet / 1000),
+      foreignCumulative,
+      trustCumulative,
     };
   });
 
@@ -189,11 +200,44 @@ function renderChart(rows, metricKey, metricLabel) {
     stacked = false;
   }
 
-  const config = {
-    data: {
-      labels,
-      datasets: [
-        ...barDatasets,
+  // 三大法人合計檢視模式下，折線圖多疊外資、投信各自的累計線(顏色跟柱狀圖的外資/投信配色
+  // 對應，一眼看得出哪條線是哪個類別)；其他單一類別檢視模式維持原本只有一條累計線。
+  const lineDatasets = metricKey === "grand"
+    ? [
+        {
+          type: "line",
+          label: "三大法人合計累計(張)",
+          data: rows.map(r => r.grandCumulative),
+          borderColor: "#2c3e50",
+          backgroundColor: "#2c3e50",
+          yAxisID: "y1",
+          pointRadius: 0,
+          borderWidth: 2,
+        },
+        {
+          type: "line",
+          label: "外資累計(張)",
+          data: rows.map(r => r.foreignCumulative),
+          borderColor: "#3498db",
+          backgroundColor: "#3498db",
+          yAxisID: "y1",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+        },
+        {
+          type: "line",
+          label: "投信累計(張)",
+          data: rows.map(r => r.trustCumulative),
+          borderColor: "#f39c12",
+          backgroundColor: "#f39c12",
+          yAxisID: "y1",
+          pointRadius: 0,
+          borderWidth: 1.5,
+          borderDash: [4, 4],
+        },
+      ]
+    : [
         {
           type: "line",
           label: `${metricLabel}累計買賣超(張)`,
@@ -204,7 +248,12 @@ function renderChart(rows, metricKey, metricLabel) {
           pointRadius: 0,
           borderWidth: 2,
         },
-      ],
+      ];
+
+  const config = {
+    data: {
+      labels,
+      datasets: [...barDatasets, ...lineDatasets],
     },
     options: {
       responsive: true,
@@ -212,7 +261,17 @@ function renderChart(rows, metricKey, metricLabel) {
       interaction: { mode: "index", intersect: false },
       scales: {
         x: { stacked, ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
-        y: { stacked, position: "left", title: { display: true, text: `${metricLabel}買賣超(張)` } },
+        y: {
+          stacked,
+          position: "left",
+          title: { display: true, text: `${metricLabel}買賣超(張)` },
+          // 0 那條橫軸線加粗、換成深色，買超(正)、賣超(負)一眼就能分出來。
+          // Chart.js 內部第一次探測這個 scriptable option 時 ctx.tick 還沒準備好，要防呆。
+          grid: {
+            color: ctx => (ctx.tick && ctx.tick.value === 0) ? "#333333" : undefined,
+            lineWidth: ctx => (ctx.tick && ctx.tick.value === 0) ? 2 : undefined,
+          },
+        },
         y1: { position: "right", title: { display: true, text: `${metricLabel}累計買賣超(張)` }, grid: { drawOnChartArea: false } },
       },
     },
