@@ -268,6 +268,11 @@ h1 {
   margin-left: 12px;
 }
 
+/* 既有的 .positive/.negative 紅漲綠跌只套用在 td(表格儲存格)上，這裡的資訊列用的是
+   span，另外補上對應規則才會生效。 */
+.chart-info .positive { color: #c0392b; }
+.chart-info .negative { color: #27ae60; }
+
 .table-scroll {
   width: 100%;
   overflow-x: auto;
