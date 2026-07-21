@@ -116,15 +116,19 @@ function updateInfoPanels() {
     return;
   }
 
+  // 紅漲綠跌套用到整排開高低收+漲跌，不是只有漲跌那個數字，跟台股常見的報價呈現方式一致。
   const changeClass = row.change >= 0 ? "positive" : "negative";
   const changeSign = row.change > 0 ? "+" : "";
+  // 漲跌幅% = 漲跌 ÷ 前一日收盤價(= 今日收盤價 - 漲跌) × 100。
+  const prevClose = row.close - row.change;
+  const changePercent = prevClose !== 0 ? (row.change / prevClose) * 100 : 0;
   priceInfoEl.innerHTML = `
     <span class="label">${row.date}</span>
-    <span>開 ${row.open.toFixed(2)}</span>
-    <span>高 ${row.high.toFixed(2)}</span>
-    <span>低 ${row.low.toFixed(2)}</span>
-    <span>收 ${row.close.toFixed(2)}</span>
-    <span class="${changeClass}">漲跌 ${changeSign}${row.change.toFixed(2)}</span>
+    <span class="${changeClass}">開 ${row.open.toFixed(2)}</span>
+    <span class="${changeClass}">高 ${row.high.toFixed(2)}</span>
+    <span class="${changeClass}">低 ${row.low.toFixed(2)}</span>
+    <span class="${changeClass}">收 ${row.close.toFixed(2)}</span>
+    <span class="${changeClass}">漲跌 ${changeSign}${row.change.toFixed(2)} (${changeSign}${changePercent.toFixed(2)}%)</span>
   `;
 
   const lots = Math.round(row.volume / 1000);
