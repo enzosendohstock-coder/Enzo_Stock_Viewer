@@ -33,9 +33,21 @@ let currentMetricLabel = "三大法人合計";
 // 那樣處理兩張圖之間的同步。
 const hoverState = { index: null };
 
+// 跟柱狀圖/折線圖的顏色統一，圖例色塊、資訊列共用同一份設定，不用各自維護一份顏色字串。
+const COLORS = {
+  foreign: "#3498db",
+  trust: "#f39c12",
+  dealer: "#9b59b6",
+  grand: "#2c3e50",
+};
+
 function fmtLots(v) {
   const cls = v >= 0 ? "positive" : "negative";
   return `<span class="${cls}">${v.toLocaleString()}</span>`;
+}
+
+function swatch(color) {
+  return `<span class="swatch" style="background:${color}"></span>`;
 }
 
 function updateChartInfo() {
@@ -48,20 +60,45 @@ function updateChartInfo() {
 
   if (currentMetricKey === "grand") {
     chartInfoEl.innerHTML = `
-      <span class="label">${row.date}</span>
-      <span>外資 ${fmtLots(row.foreignTotalNetLots)}</span>
-      <span>投信 ${fmtLots(row.trustNetLots)}</span>
-      <span>自營 ${fmtLots(row.dealerTotalNetLots)}</span>
-      <span>合計 ${fmtLots(row.grandDaily)}</span>
-      <span>三大法人合計累計 ${fmtLots(row.grandCumulative)}</span>
-      <span>外資累計 ${fmtLots(row.foreignCumulative)}</span>
-      <span>投信累計 ${fmtLots(row.trustCumulative)}</span>
+      <div class="chart-info-legend">
+        <span class="label">${row.date}</span>
+        ${swatch(COLORS.foreign)}<span>外資買賣超(張)</span>
+        ${swatch(COLORS.trust)}<span>投信買賣超(張)</span>
+        ${swatch(COLORS.dealer)}<span>自營商買賣超(張)</span>
+        ${swatch(COLORS.grand)}<span>三大法人合計累計(張)</span>
+        ${swatch(COLORS.foreign)}<span>外資累計(張)</span>
+        ${swatch(COLORS.trust)}<span>投信累計(張)</span>
+      </div>
+      <div class="chart-info-row">
+        <span class="row-label">當日</span>
+        <span>外資 ${fmtLots(row.foreignTotalNetLots)}</span>
+        <span>投信 ${fmtLots(row.trustNetLots)}</span>
+        <span>自營 ${fmtLots(row.dealerTotalNetLots)}</span>
+        <span>合計 ${fmtLots(row.grandDaily)}</span>
+      </div>
+      <div class="chart-info-row">
+        <span class="row-label">累計</span>
+        <span>外資 ${fmtLots(row.foreignCumulative)}</span>
+        <span>投信 ${fmtLots(row.trustCumulative)}</span>
+        <span>自營 ${fmtLots(row.dealerCumulative)}</span>
+        <span>合計累計 ${fmtLots(row.grandCumulative)}</span>
+      </div>
     `;
   } else {
     chartInfoEl.innerHTML = `
-      <span class="label">${row.date}</span>
-      <span>${currentMetricLabel} ${fmtLots(row.metricDaily)}</span>
-      <span>${currentMetricLabel}累計 ${fmtLots(row.metricCumulative)}</span>
+      <div class="chart-info-legend">
+        <span class="label">${row.date}</span>
+        ${swatch(COLORS.grand)}<span>${currentMetricLabel}買賣超(張)</span>
+        ${swatch(COLORS.grand)}<span>${currentMetricLabel}累計買賣超(張)</span>
+      </div>
+      <div class="chart-info-row">
+        <span class="row-label">當日</span>
+        <span>${currentMetricLabel} ${fmtLots(row.metricDaily)}</span>
+      </div>
+      <div class="chart-info-row">
+        <span class="row-label">累計</span>
+        <span>${currentMetricLabel} ${fmtLots(row.metricCumulative)}</span>
+      </div>
     `;
   }
 }
@@ -171,9 +208,11 @@ function render() {
   let grandCumulative = 0;
   let metricCumulative = 0;
   // 三大法人合計檢視模式下，折線圖除了三大法人合計累計，還要多疊外資、投信各自的累計線，
-  // 所以這兩個也要單獨累加，不能只靠 metricCumulative(那個只會累加目前下拉選單選到的單一類別)。
+  // 資訊列的累計那排也要顯示自營商累計，所以這三個都要單獨累加，不能只靠 metricCumulative
+  // (那個只會累加目前下拉選單選到的單一類別)。
   let foreignCumulative = 0;
   let trustCumulative = 0;
+  let dealerCumulative = 0;
   const withComputed = rows.map(r => {
     const grandDaily = Math.round(r.grandTotalNet / 1000);
     grandCumulative += grandDaily;
@@ -183,8 +222,10 @@ function render() {
 
     const foreignTotalNetLots = Math.round(r.foreignTotalNet / 1000);
     const trustNetLots = Math.round(r.trustNet / 1000);
+    const dealerTotalNetLots = Math.round(r.dealerTotalNet / 1000);
     foreignCumulative += foreignTotalNetLots;
     trustCumulative += trustNetLots;
+    dealerCumulative += dealerTotalNetLots;
 
     return {
       ...r,
@@ -194,9 +235,10 @@ function render() {
       metricCumulative,
       foreignTotalNetLots,
       trustNetLots,
-      dealerTotalNetLots: Math.round(r.dealerTotalNet / 1000),
+      dealerTotalNetLots,
       foreignCumulative,
       trustCumulative,
+      dealerCumulative,
     };
   });
 
@@ -229,7 +271,7 @@ function renderChart(rows, metricKey, metricLabel) {
         type: "bar",
         label: "外資買賣超(張)",
         data: rows.map(r => r.foreignTotalNetLots),
-        backgroundColor: "#3498db",
+        backgroundColor: COLORS.foreign,
         yAxisID: "y",
         stack: "daily",
       },
@@ -237,7 +279,7 @@ function renderChart(rows, metricKey, metricLabel) {
         type: "bar",
         label: "投信買賣超(張)",
         data: rows.map(r => r.trustNetLots),
-        backgroundColor: "#f39c12",
+        backgroundColor: COLORS.trust,
         yAxisID: "y",
         stack: "daily",
       },
@@ -245,7 +287,7 @@ function renderChart(rows, metricKey, metricLabel) {
         type: "bar",
         label: "自營商買賣超(張)",
         data: rows.map(r => r.dealerTotalNetLots),
-        backgroundColor: "#9b59b6",
+        backgroundColor: COLORS.dealer,
         yAxisID: "y",
         stack: "daily",
       },
@@ -275,8 +317,8 @@ function renderChart(rows, metricKey, metricLabel) {
           type: "line",
           label: "三大法人合計累計(張)",
           data: rows.map(r => r.grandCumulative),
-          borderColor: "#2c3e50",
-          backgroundColor: "#2c3e50",
+          borderColor: COLORS.grand,
+          backgroundColor: COLORS.grand,
           yAxisID: "y1",
           pointRadius: 0,
           borderWidth: 2,
@@ -285,8 +327,8 @@ function renderChart(rows, metricKey, metricLabel) {
           type: "line",
           label: "外資累計(張)",
           data: rows.map(r => r.foreignCumulative),
-          borderColor: "#3498db",
-          backgroundColor: "#3498db",
+          borderColor: COLORS.foreign,
+          backgroundColor: COLORS.foreign,
           yAxisID: "y1",
           pointRadius: 0,
           borderWidth: 1.5,
@@ -296,8 +338,8 @@ function renderChart(rows, metricKey, metricLabel) {
           type: "line",
           label: "投信累計(張)",
           data: rows.map(r => r.trustCumulative),
-          borderColor: "#f39c12",
-          backgroundColor: "#f39c12",
+          borderColor: COLORS.trust,
+          backgroundColor: COLORS.trust,
           yAxisID: "y1",
           pointRadius: 0,
           borderWidth: 1.5,
@@ -309,8 +351,8 @@ function renderChart(rows, metricKey, metricLabel) {
           type: "line",
           label: `${metricLabel}累計買賣超(張)`,
           data: cumulativeData,
-          borderColor: "#2c3e50",
-          backgroundColor: "#2c3e50",
+          borderColor: COLORS.grand,
+          backgroundColor: COLORS.grand,
           yAxisID: "y1",
           pointRadius: 0,
           borderWidth: 2,
@@ -326,9 +368,11 @@ function renderChart(rows, metricKey, metricLabel) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      // 關掉浮動 tooltip，數字改用上方固定的 chartInfo 資訊列顯示(見 updateChartInfo)。
+      // 關掉浮動 tooltip 跟內建圖例，改成上方固定的 chartInfo 資訊列一起處理
+      // (日期、色塊圖例、當日數字、累計數字都在同一區塊，見 updateChartInfo)。
       plugins: {
         tooltip: { enabled: false },
+        legend: { display: false },
       },
       scales: {
         x: { stacked, ticks: { maxRotation: 90, minRotation: 90, autoSkip: true, maxTicksLimit: 30 } },
