@@ -50,6 +50,12 @@ function swatch(color) {
   return `<span class="swatch" style="background:${color}"></span>`;
 }
 
+// 折線圖那幾項圖例改用線條圖示(而不是實心方塊)，跟圖表上實際畫的線條樣式對應——
+// 外資累計/投信累計是虛線，用 dashed=true。
+function lineSwatch(color, dashed) {
+  return `<span class="line-swatch${dashed ? " dashed" : ""}" style="border-color:${color}"></span>`;
+}
+
 function updateChartInfo() {
   const index = hoverState.index ?? currentRows.length - 1;
   const row = currentRows[index];
@@ -65,9 +71,9 @@ function updateChartInfo() {
         ${swatch(COLORS.foreign)}<span>外資買賣超(張)</span>
         ${swatch(COLORS.trust)}<span>投信買賣超(張)</span>
         ${swatch(COLORS.dealer)}<span>自營商買賣超(張)</span>
-        ${swatch(COLORS.grand)}<span>三大法人合計累計(張)</span>
-        ${swatch(COLORS.foreign)}<span>外資累計(張)</span>
-        ${swatch(COLORS.trust)}<span>投信累計(張)</span>
+        ${lineSwatch(COLORS.grand)}<span>三大法人合計累計(張)</span>
+        ${lineSwatch(COLORS.foreign, true)}<span>外資累計(張)</span>
+        ${lineSwatch(COLORS.trust, true)}<span>投信累計(張)</span>
       </div>
       <div class="chart-info-row">
         <span class="row-label">當日</span>
@@ -89,7 +95,7 @@ function updateChartInfo() {
       <div class="chart-info-legend">
         <span class="label">${row.date}</span>
         ${swatch(COLORS.grand)}<span>${currentMetricLabel}買賣超(張)</span>
-        ${swatch(COLORS.grand)}<span>${currentMetricLabel}累計買賣超(張)</span>
+        ${lineSwatch(COLORS.grand)}<span>${currentMetricLabel}累計買賣超(張)</span>
       </div>
       <div class="chart-info-row">
         <span class="row-label">當日</span>

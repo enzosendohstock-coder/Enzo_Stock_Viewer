@@ -289,6 +289,25 @@ h1 {
   margin-left: 4px;
 }
 
+/* 折線圖圖例用線條圖示(而不是實心方塊)，跟圖表上實際的線條樣式對應；
+   外資累計/投信累計是虛線，加 .dashed 這個修飾類別。 */
+.chart-info-legend .line-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 0;
+  border-top-width: 2px;
+  border-top-style: solid;
+  margin-left: 12px;
+}
+
+.chart-info-legend .line-swatch.dashed {
+  border-top-style: dashed;
+}
+
+.chart-info-legend .line-swatch + span {
+  margin-left: 4px;
+}
+
 .chart-info-row {
   margin-top: 2px;
 }
