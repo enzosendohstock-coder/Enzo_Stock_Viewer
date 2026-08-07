@@ -3,6 +3,8 @@ const NAV_LINKS = [
   { href: 'institutional.html', label: '三大法人買賣超' },
   { href: 'margin.html', label: '融資融券借券' },
   { href: 'stock-price.html', label: '個股股價' },
+  { href: 'monthly-revenue.html', label: '月營收' },
+  { href: 'quarterly-financials.html', label: '季報' },
   { href: 'futures-institutional.html', label: '期貨三大法人' },
   { href: 'watchlist.html', label: '新增追蹤股票' },
 ];

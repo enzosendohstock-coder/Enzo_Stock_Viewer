@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>季報</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>季報</h1>
+
+  <div class="controls">
+    <label>
+      股票代號
+      <select id="stockSelect"></select>
+    </label>
+    <label>
+      圖表指標
+      <select id="metricSelect">
+        <option value="eps">EPS(每股盈餘)</option>
+        <option value="margins">毛利率/營益率/稅前稅後淨利率</option>
+      </select>
+    </label>
+  </div>
+
+  <p class="placeholder-text">
+    金控/證期/保險/異業這幾種產業別的損益表科目跟一般業完全不同(例如金控業沒有「營業成本/毛利」)，
+    目前只有一般業(ci)股票有完整的營收、四率數字，其餘產業別只有 EPS，表格會顯示「-」。
+  </p>
+
+  <div id="status"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="table-scroll">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>年季</th>
+          <th>股票代號</th>
+          <th>股票名稱</th>
+          <th>產業別</th>
+          <th>營收(千元)</th>
+          <th>毛利率</th>
+          <th>營益率</th>
+          <th>稅前淨利率</th>
+          <th>稅後淨利率</th>
+          <th>EPS(元)</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="quarterly-financials.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>

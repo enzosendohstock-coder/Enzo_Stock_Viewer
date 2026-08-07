@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>月營收</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>月營收</h1>
+
+  <div class="controls">
+    <label>
+      股票代號
+      <select id="stockSelect"></select>
+    </label>
+    <label>
+      開始年月
+      <input type="month" id="startMonth">
+    </label>
+    <label>
+      結束年月
+      <input type="month" id="endMonth">
+    </label>
+  </div>
+
+  <p class="placeholder-text">
+    累計營收是官方原始定義，每年 1 月自動歸零重新累加，不會跨年度累積；
+    MoM% 是跟上個月比，YoY% 是跟去年同月比，兩者比較基準不同。
+  </p>
+
+  <div id="status"></div>
+
+  <div class="chart-wrap">
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="table-scroll">
+    <table id="dataTable">
+      <thead>
+        <tr>
+          <th>年月</th>
+          <th>股票代號</th>
+          <th>股票名稱</th>
+          <th>當月營收(千元)</th>
+          <th>MoM%</th>
+          <th>YoY%</th>
+          <th>累計營收(千元)</th>
+          <th>累計YoY%</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script src="monthly-revenue.js"></script>
+  <script src="nav.js"></script>
+</body>
+</html>
