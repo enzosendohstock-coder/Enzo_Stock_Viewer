@@ -2,7 +2,6 @@ const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/quarte
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
-const metricSelect = document.getElementById("metricSelect");
 const tableBody = document.querySelector("#dataTable tbody");
 
 let allRows = [];
@@ -67,39 +66,18 @@ function render() {
   renderTable(rows);
 }
 
+// EPS(元)跟四率(%)單位差太多，分開放左右兩個 Y 軸，同一張圖用顏色區分五條線，
+// 這樣可以直接看出同一季 EPS 跟毛利率/營益率/稅前稅後淨利率之間的相對走勢。
 function renderChart(rows) {
   const labels = rows.map(r => r.period);
-  const metric = metricSelect.value;
 
-  let datasets;
-  let scales;
-
-  if (metric === "eps") {
-    datasets = [
-      {
-        type: "bar",
-        label: "EPS(元)",
-        data: rows.map(r => r.eps),
-        backgroundColor: rows.map(r => (r.eps ?? 0) >= 0 ? "#c0392b" : "#27ae60"),
-        yAxisID: "y",
-      },
-    ];
-    scales = {
-      x: { ticks: { maxRotation: 90, minRotation: 90 } },
-      y: { position: "left", title: { display: true, text: "EPS(元)" } },
-    };
-  } else {
-    datasets = [
-      { type: "line", label: "毛利率(%)", data: rows.map(r => r.grossMargin), borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y", pointRadius: 2, borderWidth: 2 },
-      { type: "line", label: "營益率(%)", data: rows.map(r => r.operatingMargin), borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y", pointRadius: 2, borderWidth: 2 },
-      { type: "line", label: "稅前淨利率(%)", data: rows.map(r => r.pretaxMargin), borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
-      { type: "line", label: "稅後淨利率(%)", data: rows.map(r => r.netMargin), borderColor: "#c0392b", backgroundColor: "#c0392b", yAxisID: "y", pointRadius: 2, borderWidth: 2 },
-    ];
-    scales = {
-      x: { ticks: { maxRotation: 90, minRotation: 90 } },
-      y: { position: "left", title: { display: true, text: "%" } },
-    };
-  }
+  const datasets = [
+    { type: "line", label: "EPS(元)", data: rows.map(r => r.eps), borderColor: "#2c3e50", backgroundColor: "#2c3e50", yAxisID: "y", pointRadius: 3, borderWidth: 3 },
+    { type: "line", label: "毛利率(%)", data: rows.map(r => r.grossMargin), borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+    { type: "line", label: "營益率(%)", data: rows.map(r => r.operatingMargin), borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+    { type: "line", label: "稅前淨利率(%)", data: rows.map(r => r.pretaxMargin), borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y1", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
+    { type: "line", label: "稅後淨利率(%)", data: rows.map(r => r.netMargin), borderColor: "#c0392b", backgroundColor: "#c0392b", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+  ];
 
   const config = {
     data: { labels, datasets },
@@ -108,7 +86,11 @@ function renderChart(rows) {
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
       spanGaps: true,
-      scales,
+      scales: {
+        x: { ticks: { maxRotation: 90, minRotation: 90 } },
+        y: { position: "left", title: { display: true, text: "EPS(元)" } },
+        y1: { position: "right", title: { display: true, text: "%" }, grid: { drawOnChartArea: false } },
+      },
     },
   };
 
@@ -148,7 +130,6 @@ function renderTable(rows) {
 }
 
 stockSelect.addEventListener("change", render);
-metricSelect.addEventListener("change", render);
 
 loadData().catch(err => {
   statusEl.textContent = "資料載入失敗：" + err.message;
