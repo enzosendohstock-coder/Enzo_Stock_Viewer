@@ -125,10 +125,72 @@ const METRIC_CONFIG = {
   cumulative: { label: "累計營收(百萬元，每年1月歸零)", type: "line", color: "#e67e22", field: r => r.cumulativeRevenue },
 };
 
+const HOVER_SELF_COLOR = "#c0392b";      // 滑鼠指到的那個點本身
+const HOVER_SAME_MONTH_COLOR = "#e74c3c"; // 其他年份、同一個月的點
+
+// 累計營收模式專用：滑鼠移到某個月的點時，把其他年份「同一個月」的點變色，
+// 再用這個外掛畫一條水平參考線，方便直接比對「跨年度同月份累計營收」的差異。
+// 只在累計營收(折線)模式生效，柱狀圖(當月營收)沒有「點」，這個比對方式不適用。
+const hoverGuidePlugin = {
+  id: "hoverGuide",
+  afterDatasetsDraw(chartInstance) {
+    const index = chartInstance._hoverIndex;
+    if (index == null) {
+      return;
+    }
+    const meta = chartInstance.getDatasetMeta(0);
+    const point = meta.data[index];
+    if (!point) {
+      return;
+    }
+
+    const { ctx, chartArea } = chartInstance;
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, point.y);
+    ctx.lineTo(chartArea.right, point.y);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+Chart.register(hoverGuidePlugin);
+
 function renderChart(rows) {
   const labels = rows.map(r => r.yearMonth);
   const metric = METRIC_CONFIG[metricSelect.value];
   const values = rows.map(r => Math.round(metric.field(r) / 1000)); // 千元 -> 百萬元，數字比較好讀
+  const isCumulative = metricSelect.value === "cumulative";
+
+  function pointColor(context) {
+    const hoverIndex = context.chart._hoverIndex;
+    // Chart.js 除了每個點各自呼叫一次，也會在「整個 dataset 的預設樣式」這層呼叫一次
+    // (這時候沒有 dataIndex)，這裡要先擋掉，不然 labels[undefined] 會直接炸掉。
+    if (hoverIndex == null || context.dataIndex == null) {
+      return metric.color;
+    }
+    if (context.dataIndex === hoverIndex) {
+      return HOVER_SELF_COLOR;
+    }
+    const hoverMonth = labels[hoverIndex].slice(5, 7);
+    const thisMonth = labels[context.dataIndex].slice(5, 7);
+    return thisMonth === hoverMonth ? HOVER_SAME_MONTH_COLOR : metric.color;
+  }
+
+  function pointRadius(context) {
+    const hoverIndex = context.chart._hoverIndex;
+    if (hoverIndex == null || context.dataIndex == null) {
+      return 0;
+    }
+    if (context.dataIndex === hoverIndex) {
+      return 5;
+    }
+    const hoverMonth = labels[hoverIndex].slice(5, 7);
+    const thisMonth = labels[context.dataIndex].slice(5, 7);
+    return thisMonth === hoverMonth ? 5 : 0;
+  }
 
   const config = {
     data: {
@@ -138,9 +200,11 @@ function renderChart(rows) {
           type: metric.type,
           label: metric.label,
           data: values,
-          backgroundColor: metric.color,
+          backgroundColor: isCumulative ? pointColor : metric.color,
           borderColor: metric.color,
-          pointRadius: metric.type === "line" ? 0 : undefined,
+          pointBackgroundColor: isCumulative ? pointColor : undefined,
+          pointBorderColor: isCumulative ? pointColor : undefined,
+          pointRadius: isCumulative ? pointRadius : (metric.type === "line" ? 0 : undefined),
           borderWidth: metric.type === "line" ? 2 : undefined,
         },
       ],
@@ -149,6 +213,17 @@ function renderChart(rows) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
+      // 滑鼠移動時記錄目前指到的資料索引，變動時才觸發重繪(update('none') 不帶動畫，
+      // 不然滑鼠移動時每一幀都重播動畫會很卡)。只有累計營收模式需要這個比對邏輯。
+      onHover: isCumulative
+        ? (event, activeElements, chartInstance) => {
+            const newIndex = activeElements.length > 0 ? activeElements[0].index : null;
+            if (chartInstance._hoverIndex !== newIndex) {
+              chartInstance._hoverIndex = newIndex;
+              chartInstance.update("none");
+            }
+          }
+        : undefined,
       scales: {
         x: { ticks: xAxisTicks(labels) },
         y: { beginAtZero: true, title: { display: true, text: metric.label } },
