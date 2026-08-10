@@ -1,5 +1,6 @@
 const WATCHLIST_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/watchlist';
 const BACKFILL_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/backfill';
+const MONTHLY_REVENUE_BACKFILL_API_URL = 'https://ppi-stock-worker.enzosendohstock.workers.dev/api/backfill/monthly-revenue';
 const CODE_PATTERN = /^[0-9]{4,6}$/;
 const STOCK_LIST_URL = 'stock-list.json';
 const MARKET_LABEL = { TWSE: '上市', TPEx: '上櫃' };
@@ -20,19 +21,23 @@ document.addEventListener('DOMContentLoaded', () => {
   loadWatchlist();
 
   document.querySelector('#watchlistTable tbody').addEventListener('click', async (e) => {
-    const btn = e.target.closest('.backfill-btn');
+    const btn = e.target.closest('.backfill-btn, .monthly-revenue-backfill-btn');
     if (!btn) return;
 
     const code = btn.dataset.code;
+    const isMonthlyRevenue = btn.classList.contains('monthly-revenue-backfill-btn');
+    const url = isMonthlyRevenue ? MONTHLY_REVENUE_BACKFILL_API_URL : BACKFILL_API_URL;
+    const body = isMonthlyRevenue ? { stockCode: code, mode: btn.dataset.mode } : { stockCode: code };
+
     btn.disabled = true;
     const originalText = btn.textContent;
     btn.textContent = '觸發中...';
 
     try {
-      const response = await fetch(BACKFILL_API_URL, {
+      const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stockCode: code }),
+        body: JSON.stringify(body),
       });
       const result = await response.json();
       alert(result.message);
@@ -130,7 +135,11 @@ async function loadWatchlist() {
         <td>${item.code}</td>
         <td>${item.shortName}</td>
         <td>${item.fullName}</td>
-        <td><button type="button" class="backfill-btn" data-code="${item.code}">補資料</button></td>
+        <td>
+          <button type="button" class="backfill-btn" data-code="${item.code}">補資料</button>
+          <button type="button" class="monthly-revenue-backfill-btn" data-code="${item.code}" data-mode="recent">月營收補近期(2020起)</button>
+          <button type="button" class="monthly-revenue-backfill-btn" data-code="${item.code}" data-mode="deep">月營收補2010起</button>
+        </td>
       `;
       tbody.appendChild(tr);
     }
