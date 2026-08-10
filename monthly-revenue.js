@@ -5,10 +5,16 @@ const stockSelect = document.getElementById("stockSelect");
 const startMonthInput = document.getElementById("startMonth");
 const endMonthInput = document.getElementById("endMonth");
 const metricSelect = document.getElementById("metricSelect");
+const chartInfoEl = document.getElementById("chartInfo");
 const tableBody = document.querySelector("#dataTable tbody");
 
 let allRows = [];
 let chart = null;
+let currentRows = [];
+
+// 跟三大法人買賣超那頁(app.js)同一套做法：不用浮動 tooltip，改成圖表上方固定的資訊列，
+// 跟著滑鼠十字準線即時更新。hoverState 是模組層級狀態，不掛在 chart instance 上。
+const hoverState = { index: null };
 
 function num(v) {
   const n = Number(v);
@@ -86,8 +92,11 @@ function getFilteredRows() {
 
 function render() {
   const rows = getFilteredRows();
+  currentRows = rows;
+  hoverState.index = null;
   renderChart(rows);
   renderTable(rows);
+  updateChartInfo();
 }
 
 // 'yyyy-MM' -> 'yyMM'，跟 margin.js 的 shortDate 同樣的簡化邏輯，只是月營收沒有日期只到月。
@@ -128,13 +137,109 @@ const METRIC_CONFIG = {
 const HOVER_SELF_COLOR = "#c0392b";      // 滑鼠指到的那個點本身
 const HOVER_SAME_MONTH_COLOR = "#e74c3c"; // 其他年份、同一個月的點
 
+function swatch(color) {
+  return `<span class="swatch" style="background:${color}"></span>`;
+}
+
+function lineSwatch(color) {
+  return `<span class="line-swatch" style="border-color:${color}"></span>`;
+}
+
+function fmtNum(v) {
+  return v == null ? "-" : Math.round(v).toLocaleString();
+}
+
+function fmtPctSpan(v) {
+  if (v === null) {
+    return "-";
+  }
+  const cls = v >= 0 ? "positive" : "negative";
+  return `<span class="${cls}">${v.toFixed(2)}%</span>`;
+}
+
+// 不用浮動 tooltip，改成這個固定資訊列：沒有滑鼠指到任何點時，預設顯示最新一筆(跟
+// stock-price.html/app.js 同樣的預設行為)。累計營收模式下額外列出「同月不同年」的比較數字，
+// 跟圖上變色的點呼應——不用只靠肉眼比對點的高低，直接把數字列出來對照。
+function updateChartInfo() {
+  const index = hoverState.index ?? currentRows.length - 1;
+  const row = currentRows[index];
+  if (!row) {
+    chartInfoEl.innerHTML = "";
+    return;
+  }
+
+  const metric = METRIC_CONFIG[metricSelect.value];
+
+  if (metricSelect.value !== "cumulative") {
+    chartInfoEl.innerHTML = `
+      <div class="chart-info-legend">
+        <span class="label">${row.yearMonth}</span>
+        ${swatch(metric.color)}<span>當月營收(千元)</span>
+      </div>
+      <div class="chart-info-row">
+        <span>當月營收 ${fmtNum(row.revenue)}</span>
+        <span>MoM ${fmtPctSpan(row.momPercent)}</span>
+        <span>YoY ${fmtPctSpan(row.yoyPercent)}</span>
+      </div>
+    `;
+    return;
+  }
+
+  const hoverMonth = row.yearMonth.slice(5, 7);
+  const sameMonthRows = currentRows
+    .filter(r => r.yearMonth.slice(5, 7) === hoverMonth && r.yearMonth !== row.yearMonth)
+    .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
+  const compareHtml = sameMonthRows.length > 0
+    ? sameMonthRows.map(r => `<span>${r.yearMonth} ${fmtNum(r.cumulativeRevenue)}</span>`).join("")
+    : "<span>(目前範圍內沒有其他年份同月資料)</span>";
+
+  chartInfoEl.innerHTML = `
+    <div class="chart-info-legend">
+      <span class="label">${row.yearMonth}</span>
+      ${lineSwatch(metric.color)}<span>累計營收(千元，每年1月歸零)</span>
+    </div>
+    <div class="chart-info-row">
+      <span class="row-label">當期</span>
+      <span>累計營收 ${fmtNum(row.cumulativeRevenue)}</span>
+      <span>累計YoY ${fmtPctSpan(row.cumulativeYoyPercent)}</span>
+    </div>
+    <div class="chart-info-row">
+      <span class="row-label">同月比較</span>
+      ${compareHtml}
+    </div>
+  `;
+}
+
 // 累計營收模式專用：滑鼠移到某個月的點時，把其他年份「同一個月」的點變色，
 // 再用這個外掛畫一條水平參考線，方便直接比對「跨年度同月份累計營收」的差異。
 // 只在累計營收(折線)模式生效，柱狀圖(當月營收)沒有「點」，這個比對方式不適用。
-const hoverGuidePlugin = {
-  id: "hoverGuide",
+// 同一個外掛也負責在滑鼠移動/離開時更新上方的固定資訊列(取代 Chart.js 內建 tooltip)。
+const chartInfoPlugin = {
+  id: "chartInfo",
+  afterEvent(chartInstance, args) {
+    const event = args.event;
+    if (event.type === "mousemove" || event.type === "mousedown") {
+      const points = chartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
+      if (points.length > 0 && points[0].index !== hoverState.index) {
+        hoverState.index = points[0].index;
+        updateChartInfo();
+        chartInstance.update("none");
+      }
+    } else if (event.type === "mouseout") {
+      if (hoverState.index !== null) {
+        hoverState.index = null;
+        updateChartInfo();
+        chartInstance.update("none");
+      }
+    }
+  },
   afterDatasetsDraw(chartInstance) {
-    const index = chartInstance._hoverIndex;
+    // 水平參考線只在累計營收(折線)模式畫，跟同月變色點是同一套比對邏輯，
+    // 當月營收(柱狀圖)沒有這個「跨年同月比較」的概念，不該出現這條線。
+    if (metricSelect.value !== "cumulative") {
+      return;
+    }
+    const index = hoverState.index;
     if (index == null) {
       return;
     }
@@ -156,7 +261,7 @@ const hoverGuidePlugin = {
     ctx.restore();
   },
 };
-Chart.register(hoverGuidePlugin);
+Chart.register(chartInfoPlugin);
 
 function renderChart(rows) {
   const labels = rows.map(r => r.yearMonth);
@@ -165,7 +270,7 @@ function renderChart(rows) {
   const isCumulative = metricSelect.value === "cumulative";
 
   function pointColor(context) {
-    const hoverIndex = context.chart._hoverIndex;
+    const hoverIndex = hoverState.index;
     // Chart.js 除了每個點各自呼叫一次，也會在「整個 dataset 的預設樣式」這層呼叫一次
     // (這時候沒有 dataIndex)，這裡要先擋掉，不然 labels[undefined] 會直接炸掉。
     if (hoverIndex == null || context.dataIndex == null) {
@@ -180,7 +285,7 @@ function renderChart(rows) {
   }
 
   function pointRadius(context) {
-    const hoverIndex = context.chart._hoverIndex;
+    const hoverIndex = hoverState.index;
     if (hoverIndex == null || context.dataIndex == null) {
       return 0;
     }
@@ -213,17 +318,11 @@ function renderChart(rows) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: "index", intersect: false },
-      // 滑鼠移動時記錄目前指到的資料索引，變動時才觸發重繪(update('none') 不帶動畫，
-      // 不然滑鼠移動時每一幀都重播動畫會很卡)。只有累計營收模式需要這個比對邏輯。
-      onHover: isCumulative
-        ? (event, activeElements, chartInstance) => {
-            const newIndex = activeElements.length > 0 ? activeElements[0].index : null;
-            if (chartInstance._hoverIndex !== newIndex) {
-              chartInstance._hoverIndex = newIndex;
-              chartInstance.update("none");
-            }
-          }
-        : undefined,
+      // 關掉浮動 tooltip 跟內建圖例，改成上方固定的 chartInfo 資訊列處理(chartInfoPlugin)。
+      plugins: {
+        tooltip: { enabled: false },
+        legend: { display: false },
+      },
       scales: {
         x: { ticks: xAxisTicks(labels) },
         y: { beginAtZero: true, title: { display: true, text: metric.label } },
