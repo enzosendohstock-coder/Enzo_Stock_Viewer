@@ -59,19 +59,30 @@ function populateStockOptions() {
   }
 }
 
-// 圖表預設顯示近 5 年(60個月)，不是一開啟就攤開全部歷史(回補到 2010 年的話會有 190+ 個月)。
-// 完整歷史還在，min/max 開放到全部範圍，使用者可以自己用上面的日期選擇器拉開來看。
-const DEFAULT_VISIBLE_MONTHS = 60;
+// 圖表預設顯示「往前 5 年的 1 月」開始，不是一開啟就攤開全部歷史(回補到 2010 年的話會有
+// 190+ 個月)。不是固定 60 個月的滾動視窗，是固定錨在「今年-5」的 1 月——例如今天是 2026 年，
+// 不管現在幾月，預設起點都是 2021-01，這樣每年切過年就會自然往後挪一年，而不是每次都精準
+// 往回數 60 個月結果卡在某個月中間。完整歷史還在，min/max 開放到全部範圍，
+// 使用者可以自己用上面的日期選擇器拉開來看。
+function defaultStartYearMonth() {
+  const currentYear = new Date().getFullYear();
+  return `${currentYear - 5}-01`;
+}
 
 // 日期元件跟個股股價頁面統一都用原生的 <input type="date">，不是 <input type="month">——
 // yearMonth 存的是 'yyyy-MM'，這裡固定補上 "-01" 當作每月第一天存進 date input。
 function populateMonthRange() {
-  const months = allRows.map(r => r.yearMonth).sort();
+  // 一定要先去重複：allRows 是整個 Watchlist 所有股票的資料列，同一個年月會因為不同股票
+  // 各出現一次，不去重複的話「近 5 年」會變成「近 60 筆列」，跟真正的月份數對不上。
+  const months = [...new Set(allRows.map(r => r.yearMonth))].sort();
   const earliest = months[0];
   const latest = months[months.length - 1];
 
-  const defaultStartIndex = Math.max(0, months.length - DEFAULT_VISIBLE_MONTHS);
-  startMonthInput.value = `${months[defaultStartIndex]}-01`;
+  // 「今年-5」的1月可能比實際最早的資料還早(例如這支股票只回補到某個較晚的年份)，
+  // 這種情況下退而求其次，從實際最早的資料月份開始，不會超出資料範圍去顯示空白區間。
+  const defaultStart = defaultStartYearMonth() < earliest ? earliest : defaultStartYearMonth();
+
+  startMonthInput.value = `${defaultStart}-01`;
   endMonthInput.value = `${latest}-01`;
   startMonthInput.min = `${earliest}-01`;
   startMonthInput.max = `${latest}-01`;
@@ -130,8 +141,8 @@ function xAxisTicks(labels) {
 // 當月營收、累計營收改成用「圖表指標」下拉選單切換，同一時間只畫一條資料在同一張圖、同一個 Y 軸，
 // 不用再處理兩者數字量級差很多時要怎麼共用/分開座標軸的問題——單一指標永遠用自己最適合的範圍呈現。
 const METRIC_CONFIG = {
-  revenue: { label: "當月營收(百萬元)", type: "bar", color: "#3498db", field: r => r.revenue },
-  cumulative: { label: "累計營收(百萬元，每年1月歸零)", type: "line", color: "#e67e22", field: r => r.cumulativeRevenue },
+  revenue: { label: "當月營收(億元)", type: "bar", color: "#3498db", field: r => r.revenue },
+  cumulative: { label: "累計營收(億元，每年1月歸零)", type: "line", color: "#e67e22", field: r => r.cumulativeRevenue },
 };
 
 const HOVER_SELF_COLOR = "#c0392b";      // 滑鼠指到的那個點本身
@@ -145,8 +156,13 @@ function lineSwatch(color) {
   return `<span class="line-swatch" style="border-color:${color}"></span>`;
 }
 
-function fmtNum(v) {
-  return v == null ? "-" : Math.round(v).toLocaleString();
+// 原始資料是千元，全站金額改用「億」當單位比較好讀(1億 = 100,000 千元)。
+function toYi(v) {
+  return v / 100000;
+}
+
+function fmtYi(v, decimals = 2) {
+  return v == null ? "-" : toYi(v).toFixed(decimals);
 }
 
 function fmtPctSpan(v) {
@@ -155,6 +171,17 @@ function fmtPctSpan(v) {
   }
   const cls = v >= 0 ? "positive" : "negative";
   return `<span class="${cls}">${v.toFixed(2)}%</span>`;
+}
+
+// 同月比較每一列格式：yyyy/MM(金額億, 相對基準月的增減%)。日期跟金額(含增減%)用不同顏色區分，
+// 基準一律是滑鼠目前指到的那個月，不是官方的 YoY(那是固定跟去年比，這裡的比較對象可以是任何年份)。
+function formatCompareEntry(baseValue, r) {
+  const dateText = r.yearMonth.replace("-", "/");
+  const amountText = fmtYi(r.cumulativeRevenue);
+  const pct = baseValue > 0 ? ((r.cumulativeRevenue - baseValue) / baseValue) * 100 : null;
+  const pctText = pct === null ? "-" : `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
+  const cls = pct === null ? "" : (pct >= 0 ? "positive" : "negative");
+  return `<span class="compare-entry"><span class="compare-date">${dateText}</span><span class="${cls}">(${amountText}億, ${pctText})</span></span>`;
 }
 
 // 不用浮動 tooltip，改成這個固定資訊列：沒有滑鼠指到任何點時，預設顯示最新一筆(跟
@@ -174,10 +201,10 @@ function updateChartInfo() {
     chartInfoEl.innerHTML = `
       <div class="chart-info-legend">
         <span class="label">${row.yearMonth}</span>
-        ${swatch(metric.color)}<span>當月營收(千元)</span>
+        ${swatch(metric.color)}<span>當月營收(億元)</span>
       </div>
       <div class="chart-info-row">
-        <span>當月營收 ${fmtNum(row.revenue)}</span>
+        <span>當月營收 ${fmtYi(row.revenue)}億</span>
         <span>MoM ${fmtPctSpan(row.momPercent)}</span>
         <span>YoY ${fmtPctSpan(row.yoyPercent)}</span>
       </div>
@@ -190,17 +217,17 @@ function updateChartInfo() {
     .filter(r => r.yearMonth.slice(5, 7) === hoverMonth && r.yearMonth !== row.yearMonth)
     .sort((a, b) => a.yearMonth.localeCompare(b.yearMonth));
   const compareHtml = sameMonthRows.length > 0
-    ? sameMonthRows.map(r => `<span>${r.yearMonth} ${fmtNum(r.cumulativeRevenue)}</span>`).join("")
+    ? sameMonthRows.map(r => formatCompareEntry(row.cumulativeRevenue, r)).join("")
     : "<span>(目前範圍內沒有其他年份同月資料)</span>";
 
   chartInfoEl.innerHTML = `
     <div class="chart-info-legend">
       <span class="label">${row.yearMonth}</span>
-      ${lineSwatch(metric.color)}<span>累計營收(千元，每年1月歸零)</span>
+      ${lineSwatch(metric.color)}<span>累計營收(億元，每年1月歸零)</span>
     </div>
     <div class="chart-info-row">
       <span class="row-label">當期</span>
-      <span>累計營收 ${fmtNum(row.cumulativeRevenue)}</span>
+      <span>累計營收 ${fmtYi(row.cumulativeRevenue)}億</span>
       <span>累計YoY ${fmtPctSpan(row.cumulativeYoyPercent)}</span>
     </div>
     <div class="chart-info-row">
@@ -266,7 +293,7 @@ Chart.register(chartInfoPlugin);
 function renderChart(rows) {
   const labels = rows.map(r => r.yearMonth);
   const metric = METRIC_CONFIG[metricSelect.value];
-  const values = rows.map(r => Math.round(metric.field(r) / 1000)); // 千元 -> 百萬元，數字比較好讀
+  const values = rows.map(r => Math.round(toYi(metric.field(r)) * 100) / 100); // 千元 -> 億元(保留2位小數)
   const isCumulative = metricSelect.value === "cumulative";
 
   function pointColor(context) {
@@ -354,10 +381,10 @@ function renderTable(rows) {
       <td>${r.yearMonth}</td>
       <td>${r.stockCode}</td>
       <td>${r.stockName}</td>
-      <td>${Math.round(r.revenue).toLocaleString()}</td>
+      <td>${fmtYi(r.revenue)}</td>
       <td class="${pctClass(r.momPercent)}">${pct(r.momPercent)}</td>
       <td class="${pctClass(r.yoyPercent)}">${pct(r.yoyPercent)}</td>
-      <td>${Math.round(r.cumulativeRevenue).toLocaleString()}</td>
+      <td>${fmtYi(r.cumulativeRevenue)}</td>
       <td class="${pctClass(r.cumulativeYoyPercent)}">${pct(r.cumulativeYoyPercent)}</td>
     `;
     tableBody.appendChild(tr);
