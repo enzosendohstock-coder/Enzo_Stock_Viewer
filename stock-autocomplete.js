@@ -14,6 +14,8 @@
 //     onSelect: (code) => 使用者選定某支股票時的回呼，只負責通知，不會自動改 inputEl.value
 //               (inputEl.value 由這個元件自己統一設成 "代號 名稱" 的格式)。
 //   })
+const MAX_SUGGESTIONS = 50;
+
 function setupStockAutocomplete({ inputEl, suggestionsEl, getEntries, onSelect }) {
   let activeIndex = -1;
 
@@ -23,16 +25,16 @@ function setupStockAutocomplete({ inputEl, suggestionsEl, getEntries, onSelect }
     activeIndex = -1;
   }
 
+  // 查詢字串是空的時候(欄位本來就空、或使用者剛 focus 進來還沒打字)，不像原本輸入建議
+  // 那樣直接不顯示清單，而是顯示「全部選項」(依代號排序)——這樣同一個欄位才能兼顧兩種
+  // 用法：像原本 <select> 一樣點開瀏覽全部，也可以像輸入建議一樣打字篩選(代號開頭比對/
+  // 名稱包含比對)。
   function renderSuggestions(query) {
     const trimmed = query.trim();
-    if (!trimmed) {
-      closeSuggestions();
-      return;
-    }
-
-    const matches = getEntries()
-      .filter(e => e.code.startsWith(trimmed) || e.name.includes(trimmed))
-      .slice(0, 20);
+    const entries = getEntries();
+    const matches = trimmed
+      ? entries.filter(e => e.code.startsWith(trimmed) || e.name.includes(trimmed)).slice(0, MAX_SUGGESTIONS)
+      : [...entries].sort((a, b) => a.code.localeCompare(b.code)).slice(0, MAX_SUGGESTIONS);
 
     if (matches.length === 0) {
       closeSuggestions();
@@ -75,7 +77,15 @@ function setupStockAutocomplete({ inputEl, suggestionsEl, getEntries, onSelect }
   }
 
   inputEl.addEventListener("input", () => renderSuggestions(inputEl.value));
-  inputEl.addEventListener("focus", () => renderSuggestions(inputEl.value));
+
+  // focus 進來的當下，欄位裡通常已經是上次選定的 "代號 名稱"——如果照舊拿這個完整字串去
+  // 篩選，不會比對到任何東西(等於看起來完全沒反應)。改成強制顯示全部選項(等同傳空字串)，
+  // 同時把文字整個選取起來，這樣使用者一開始打字就會直接覆蓋掉舊值、自然接上篩選邏輯，
+  // 不用自己先手動清空欄位。
+  inputEl.addEventListener("focus", () => {
+    inputEl.select();
+    renderSuggestions("");
+  });
 
   inputEl.addEventListener("keydown", (e) => {
     const items = Array.from(suggestionsEl.querySelectorAll(".autocomplete-item"));
