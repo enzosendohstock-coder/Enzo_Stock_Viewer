@@ -2,6 +2,7 @@ const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/instit
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
+const stockSuggestionsEl = document.getElementById("stockSuggestions");
 const startDateInput = document.getElementById("startDate");
 const endDateInput = document.getElementById("endDate");
 const metricSelect = document.getElementById("metricSelect");
@@ -27,6 +28,21 @@ let recentDatesSet = new Set();
 let currentRows = [];
 let currentMetricKey = "grand";
 let currentMetricLabel = "三大法人合計";
+
+// 股票代號欄位是文字輸入(可以打代號或名稱)+ 自動完成建議清單，共用邏輯見 stock-autocomplete.js。
+let codeToStock = new Map();
+let currentStockCode = null;
+
+setupStockAutocomplete({
+  inputEl: stockSelect,
+  suggestionsEl: stockSuggestionsEl,
+  getEntries: () => [...codeToStock].map(([code, name]) => ({ code, name })),
+  onSelect: (code) => {
+    currentStockCode = code;
+    render();
+    renderSummary();
+  },
+});
 
 // 開高低收那類固定資訊列的做法(不用浮動 tooltip，改成固定顯示在圖表上方、跟著十字準線
 // 即時更新)，跟 stock-price.html 是同一套設計。這裡只有一張圖，不用像 stock-price.html
@@ -129,7 +145,7 @@ const chartInfoPlugin = {
 };
 
 function computeRecentRows() {
-  const stockCode = stockSelect.value;
+  const stockCode = currentStockCode;
   const days = Number(summaryDaysSelect.value);
 
   const stockRows = allRows
@@ -171,18 +187,19 @@ async function loadData() {
 }
 
 function populateStockOptions() {
-  const seen = new Map();
+  codeToStock = new Map();
   for (const r of allRows) {
-    if (!seen.has(r.stockCode)) seen.set(r.stockCode, r.stockName);
+    if (!codeToStock.has(r.stockCode)) codeToStock.set(r.stockCode, r.stockName);
   }
-  const codes = [...seen.keys()].sort();
+  const codes = [...codeToStock.keys()].sort();
 
-  stockSelect.innerHTML = "";
-  for (const code of codes) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = `${code} ${seen.get(code)}`;
-    stockSelect.appendChild(opt);
+  // 預設選第一支(代號排序)，跟原本 <select> 的預設行為一致；如果目前已經有選定的股票
+  // 代號(例如重新載入資料時)，維持原本選的，不要每次都跳回第一支。
+  if (!currentStockCode || !codeToStock.has(currentStockCode)) {
+    currentStockCode = codes[0] ?? null;
+  }
+  if (currentStockCode) {
+    stockSelect.value = `${currentStockCode} ${codeToStock.get(currentStockCode)}`;
   }
 }
 
@@ -197,7 +214,7 @@ function populateDateRange() {
 }
 
 function getFilteredRows() {
-  const stockCode = stockSelect.value;
+  const stockCode = currentStockCode;
   const start = startDateInput.value;
   const end = endDateInput.value;
 
@@ -458,8 +475,6 @@ function setSummaryCell(el, value) {
   el.className = value >= 0 ? "positive" : "negative";
 }
 
-stockSelect.addEventListener("change", render);
-stockSelect.addEventListener("change", renderSummary);
 startDateInput.addEventListener("change", render);
 endDateInput.addEventListener("change", render);
 metricSelect.addEventListener("change", render);

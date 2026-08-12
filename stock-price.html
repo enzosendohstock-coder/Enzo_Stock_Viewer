@@ -15,8 +15,9 @@
 
   <div class="controls">
     <label>
-      股票代號
-      <select id="stockSelect"></select>
+      股票代號 / 名稱
+      <input type="text" id="stockSelect" placeholder="代號或名稱，例如 2379 或 瑞昱" autocomplete="off">
+      <div id="stockSuggestions" class="autocomplete-suggestions"></div>
     </label>
     <label>
       開始日期
@@ -57,6 +58,7 @@
     </table>
   </div>
 
+  <script src="stock-autocomplete.js"></script>
   <script src="stock-price.js"></script>
   <script src="nav.js"></script>
 </body>

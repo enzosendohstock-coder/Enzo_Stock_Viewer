@@ -2,6 +2,7 @@ const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/monthl
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
+const stockSuggestionsEl = document.getElementById("stockSuggestions");
 const startMonthInput = document.getElementById("startMonth");
 const endMonthInput = document.getElementById("endMonth");
 const metricSelect = document.getElementById("metricSelect");
@@ -11,6 +12,22 @@ const tableBody = document.querySelector("#dataTable tbody");
 let allRows = [];
 let chart = null;
 let currentRows = [];
+
+// 股票代號欄位是文字輸入(可以打代號或名稱)+ 自動完成建議清單，共用邏輯見
+// stock-autocomplete.js。codeToStock 這個對照表只包含「這份資料裡真的有月營收資料的股票」，
+// 不是全市場清單——輸入不在這份 watchlist 範圍內的代號本來就查不到資料，沒有意義提供建議。
+let codeToStock = new Map();
+let currentStockCode = null;
+
+setupStockAutocomplete({
+  inputEl: stockSelect,
+  suggestionsEl: stockSuggestionsEl,
+  getEntries: () => [...codeToStock].map(([code, name]) => ({ code, name })),
+  onSelect: (code) => {
+    currentStockCode = code;
+    render();
+  },
+});
 
 // 跟三大法人買賣超那頁(app.js)同一套做法：不用浮動 tooltip，改成圖表上方固定的資訊列，
 // 跟著滑鼠十字準線即時更新。hoverState 是模組層級狀態，不掛在 chart instance 上。
@@ -44,18 +61,19 @@ async function loadData() {
 }
 
 function populateStockOptions() {
-  const seen = new Map();
+  codeToStock = new Map();
   for (const r of allRows) {
-    if (!seen.has(r.stockCode)) seen.set(r.stockCode, r.stockName);
+    if (!codeToStock.has(r.stockCode)) codeToStock.set(r.stockCode, r.stockName);
   }
-  const codes = [...seen.keys()].sort();
+  const codes = [...codeToStock.keys()].sort();
 
-  stockSelect.innerHTML = "";
-  for (const code of codes) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = `${code} ${seen.get(code)}`;
-    stockSelect.appendChild(opt);
+  // 預設選第一支(代號排序)，跟原本 <select> 的預設行為一致；如果目前已經有選定的股票
+  // 代號(例如重新載入資料時)，維持原本選的，不要每次都跳回第一支。
+  if (!currentStockCode || !codeToStock.has(currentStockCode)) {
+    currentStockCode = codes[0] ?? null;
+  }
+  if (currentStockCode) {
+    stockSelect.value = `${currentStockCode} ${codeToStock.get(currentStockCode)}`;
   }
 }
 
@@ -91,7 +109,7 @@ function populateMonthRange() {
 }
 
 function getFilteredRows() {
-  const stockCode = stockSelect.value;
+  const stockCode = currentStockCode;
   // date input 給的是 'yyyy-MM-dd'，只取前 7 碼('yyyy-MM')跟 yearMonth 比較。
   const start = startMonthInput.value.slice(0, 7);
   const end = endMonthInput.value.slice(0, 7);
@@ -237,9 +255,10 @@ function updateChartInfo() {
   `;
 }
 
-// 累計營收模式專用：滑鼠移到某個月的點時，把其他年份「同一個月」的點變色，
-// 再用這個外掛畫一條水平參考線，方便直接比對「跨年度同月份累計營收」的差異。
-// 只在累計營收(折線)模式生效，柱狀圖(當月營收)沒有「點」，這個比對方式不適用。
+// 累計營收模式：滑鼠移到某個月的點時，把其他年份「同一個月」的點變色，方便比對
+// 「跨年度同月份累計營收」的差異，這個變色比對只有折線圖有意義(柱狀圖沒有這個跨年同月比較)。
+// 水平參考線兩種模式都畫——不管是柱狀圖(當月營收)還是折線圖(累計營收)，滑鼠移到某個月時
+// 拉一條水平線對到那個月的數值高度，方便對照其他月份的柱子/點是不是比它高或低。
 // 同一個外掛也負責在滑鼠移動/離開時更新上方的固定資訊列(取代 Chart.js 內建 tooltip)。
 const chartInfoPlugin = {
   id: "chartInfo",
@@ -261,11 +280,6 @@ const chartInfoPlugin = {
     }
   },
   afterDatasetsDraw(chartInstance) {
-    // 水平參考線只在累計營收(折線)模式畫，跟同月變色點是同一套比對邏輯，
-    // 當月營收(柱狀圖)沒有這個「跨年同月比較」的概念，不該出現這條線。
-    if (metricSelect.value !== "cumulative") {
-      return;
-    }
     const index = hoverState.index;
     if (index == null) {
       return;
@@ -391,7 +405,6 @@ function renderTable(rows) {
   }
 }
 
-stockSelect.addEventListener("change", render);
 startMonthInput.addEventListener("change", render);
 endMonthInput.addEventListener("change", render);
 metricSelect.addEventListener("change", render);

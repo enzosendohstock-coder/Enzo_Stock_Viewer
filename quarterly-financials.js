@@ -2,10 +2,25 @@ const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/quarte
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
+const stockSuggestionsEl = document.getElementById("stockSuggestions");
 const tableBody = document.querySelector("#dataTable tbody");
 
 let allRows = [];
 let chart = null;
+
+// 股票代號欄位是文字輸入(可以打代號或名稱)+ 自動完成建議清單，共用邏輯見 stock-autocomplete.js。
+let codeToStock = new Map();
+let currentStockCode = null;
+
+setupStockAutocomplete({
+  inputEl: stockSelect,
+  suggestionsEl: stockSuggestionsEl,
+  getEntries: () => [...codeToStock].map(([code, name]) => ({ code, name })),
+  onSelect: (code) => {
+    currentStockCode = code;
+    render();
+  },
+});
 
 function num(v) {
   const n = Number(v);
@@ -38,23 +53,22 @@ async function loadData() {
 }
 
 function populateStockOptions() {
-  const seen = new Map();
+  codeToStock = new Map();
   for (const r of allRows) {
-    if (!seen.has(r.stockCode)) seen.set(r.stockCode, r.stockName);
+    if (!codeToStock.has(r.stockCode)) codeToStock.set(r.stockCode, r.stockName);
   }
-  const codes = [...seen.keys()].sort();
+  const codes = [...codeToStock.keys()].sort();
 
-  stockSelect.innerHTML = "";
-  for (const code of codes) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = `${code} ${seen.get(code)}`;
-    stockSelect.appendChild(opt);
+  if (!currentStockCode || !codeToStock.has(currentStockCode)) {
+    currentStockCode = codes[0] ?? null;
+  }
+  if (currentStockCode) {
+    stockSelect.value = `${currentStockCode} ${codeToStock.get(currentStockCode)}`;
   }
 }
 
 function getFilteredRows() {
-  const stockCode = stockSelect.value;
+  const stockCode = currentStockCode;
   return allRows
     .filter(r => r.stockCode === stockCode)
     .sort((a, b) => a.year - b.year || a.quarter - b.quarter);
@@ -128,8 +142,6 @@ function renderTable(rows) {
     tableBody.appendChild(tr);
   }
 }
-
-stockSelect.addEventListener("change", render);
 
 loadData().catch(err => {
   statusEl.textContent = "資料載入失敗：" + err.message;

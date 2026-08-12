@@ -220,12 +220,48 @@ h1 {
   flex-direction: column;
   font-size: 0.85rem;
   gap: 4px;
+  /* 讓自動完成建議清單可以絕對定位在輸入框正下方，見 .autocomplete-suggestions。 */
+  position: relative;
 }
 
 .controls select,
 .controls input {
   font-size: 1rem;
   padding: 6px;
+}
+
+/* 股票代號輸入框的自動完成建議清單，institutional.html/margin.html/stock-price.html/
+   monthly-revenue.html 共用同一份樣式(邏輯見 stock-autocomplete.js)。 */
+.autocomplete-suggestions {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 2px;
+}
+
+.autocomplete-suggestions.open {
+  display: block;
+}
+
+.autocomplete-item {
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item.active {
+  background: #f0f4f8;
 }
 
 #status {

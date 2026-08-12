@@ -2,6 +2,7 @@ const API_URL = "https://ppi-stock-worker.enzosendohstock.workers.dev/api/margin
 
 const statusEl = document.getElementById("status");
 const stockSelect = document.getElementById("stockSelect");
+const stockSuggestionsEl = document.getElementById("stockSuggestions");
 const startDateInput = document.getElementById("startDate");
 const endDateInput = document.getElementById("endDate");
 const metricSelect = document.getElementById("metricSelect");
@@ -18,6 +19,20 @@ const METRIC_FIELDS = {
 
 let allRows = [];
 let chart = null;
+
+// 股票代號欄位是文字輸入(可以打代號或名稱)+ 自動完成建議清單，共用邏輯見 stock-autocomplete.js。
+let codeToStock = new Map();
+let currentStockCode = null;
+
+setupStockAutocomplete({
+  inputEl: stockSelect,
+  suggestionsEl: stockSuggestionsEl,
+  getEntries: () => [...codeToStock].map(([code, name]) => ({ code, name })),
+  onSelect: (code) => {
+    currentStockCode = code;
+    render();
+  },
+});
 
 function num(v) {
   const n = Number(v);
@@ -51,18 +66,17 @@ async function loadData() {
 }
 
 function populateStockOptions() {
-  const seen = new Map();
+  codeToStock = new Map();
   for (const r of allRows) {
-    if (!seen.has(r.stockCode)) seen.set(r.stockCode, r.stockName);
+    if (!codeToStock.has(r.stockCode)) codeToStock.set(r.stockCode, r.stockName);
   }
-  const codes = [...seen.keys()].sort();
+  const codes = [...codeToStock.keys()].sort();
 
-  stockSelect.innerHTML = "";
-  for (const code of codes) {
-    const opt = document.createElement("option");
-    opt.value = code;
-    opt.textContent = `${code} ${seen.get(code)}`;
-    stockSelect.appendChild(opt);
+  if (!currentStockCode || !codeToStock.has(currentStockCode)) {
+    currentStockCode = codes[0] ?? null;
+  }
+  if (currentStockCode) {
+    stockSelect.value = `${currentStockCode} ${codeToStock.get(currentStockCode)}`;
   }
 }
 
@@ -77,7 +91,7 @@ function populateDateRange() {
 }
 
 function getFilteredRows() {
-  const stockCode = stockSelect.value;
+  const stockCode = currentStockCode;
   const start = startDateInput.value;
   const end = endDateInput.value;
 
@@ -202,7 +216,6 @@ function renderTable(rows) {
   }
 }
 
-stockSelect.addEventListener("change", render);
 startDateInput.addEventListener("change", render);
 endDateInput.addEventListener("change", render);
 metricSelect.addEventListener("change", render);
