@@ -138,7 +138,7 @@ async function loadWatchlist() {
         <td>
           <button type="button" class="backfill-btn" data-code="${item.code}">補資料</button>
           <button type="button" class="monthly-revenue-backfill-btn" data-code="${item.code}" data-mode="recent">月營收補近期(2020起)</button>
-          <button type="button" class="monthly-revenue-backfill-btn" data-code="${item.code}" data-mode="deep">月營收補2010起</button>
+          <button type="button" class="monthly-revenue-backfill-btn" data-code="${item.code}" data-mode="deep">月營收補2013起</button>
         </td>
       `;
       tbody.appendChild(tr);
