@@ -86,7 +86,7 @@ function renderChart(rows) {
   const labels = rows.map(r => r.period);
 
   const datasets = [
-    { type: "line", label: "EPS(元)", data: rows.map(r => r.eps), borderColor: "#2c3e50", backgroundColor: "#2c3e50", yAxisID: "y", pointRadius: 3, borderWidth: 3 },
+    { type: "bar", label: "EPS(元)", data: rows.map(r => r.eps), backgroundColor: "#2c3e50", yAxisID: "y" },
     { type: "line", label: "毛利率(%)", data: rows.map(r => r.grossMargin), borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
     { type: "line", label: "營益率(%)", data: rows.map(r => r.operatingMargin), borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
     { type: "line", label: "稅前淨利率(%)", data: rows.map(r => r.pretaxMargin), borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y1", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
