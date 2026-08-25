@@ -145,7 +145,18 @@ function renderChart(rows) {
       interaction: { mode: "index", intersect: false },
       spanGaps: true,
       scales: {
-        x: { ticks: { maxRotation: 90, minRotation: 90 } },
+        // Q4 是年報(累計整年)，橫軸標籤特別標紅+加粗，方便一眼看出年度分界點。用 scriptable
+        // 選項(color/font 都是 callback)動態判斷每個標籤是不是 Q4；ctx.index 在 Chart.js
+        // 內部用不完整的 context 探測預設值時可能是 undefined，這裡要防呆，不然會直接噴錯
+        // (institutional.html 的零基準線也踩過同樣的坑)。
+        x: {
+          ticks: {
+            maxRotation: 90,
+            minRotation: 90,
+            color: (ctx) => (ctx.index != null && labels[ctx.index]?.endsWith("Q4") ? "#c0392b" : "#666"),
+            font: (ctx) => (ctx.index != null && labels[ctx.index]?.endsWith("Q4") ? { weight: "bold" } : undefined),
+          },
+        },
         y: { position: "left", title: { display: true, text: "EPS(元)" } },
         y1: {
           position: "right",
