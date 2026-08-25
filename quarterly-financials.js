@@ -67,11 +67,34 @@ function populateStockOptions() {
   }
 }
 
+// 官方季報的 EPS(以及損益表其餘金額欄位)本質上是「今年至今累計」，不是單獨這一季——
+// Q2/Q3/Q4 的數字都是從年初累加到當季，只有 Q1 剛好等於單季(因為沒有更早的季度可以累加)。
+// 這裡額外推算「單季」數字：Q1 直接等於累計；Q2/Q3/Q4 用「這一期累計」減掉「上一季累計」
+// (同一年度內)。如果上一季剛好缺資料(回補還沒補到、或該季申報異常)，沒辦法算出正確的單季差額，
+// 寧可顯示「查無資料」也不要顯示一個算錯的數字，所以缺上一季就讓單季值是 null。
+function withQuarterlyEps(rows) {
+  return rows.map((r, i) => {
+    if (r.eps === null) {
+      return { ...r, quarterlyEps: null };
+    }
+    if (r.quarter === 1) {
+      return { ...r, quarterlyEps: r.eps };
+    }
+    const prev = rows[i - 1];
+    const isPrevSameYearPriorQuarter = prev && prev.year === r.year && prev.quarter === r.quarter - 1;
+    if (!isPrevSameYearPriorQuarter || prev.eps === null) {
+      return { ...r, quarterlyEps: null };
+    }
+    return { ...r, quarterlyEps: r.eps - prev.eps };
+  });
+}
+
 function getFilteredRows() {
   const stockCode = currentStockCode;
-  return allRows
+  const sorted = allRows
     .filter(r => r.stockCode === stockCode)
     .sort((a, b) => a.year - b.year || a.quarter - b.quarter);
+  return withQuarterlyEps(sorted);
 }
 
 function render() {
@@ -80,18 +103,39 @@ function render() {
   renderTable(rows);
 }
 
-// EPS(元)跟四率(%)單位差太多，分開放左右兩個 Y 軸，同一張圖用顏色區分五條線，
-// 這樣可以直接看出同一季 EPS 跟毛利率/營益率/稅前稅後淨利率之間的相對走勢。
+// EPS(元)跟四率(%)單位差太多，分開放左右兩個 Y 軸；EPS 同時畫單季跟累計兩根柱子(並排顯示，
+// Chart.js 兩個 bar dataset 共用同一個類別軸預設就是並排、不是疊加)，方便直接比較單季表現
+// 跟年度累計進度，四率則維持折線圖。柱子用淺灰藍色調(不用深色)，避免視覺上比折線更搶眼——
+// 折線(趨勢)才是這張圖主要想看的東西，柱子只是參考用的背景資訊。
 function renderChart(rows) {
   const labels = rows.map(r => r.period);
 
-  const datasets = [
-    { type: "bar", label: "EPS(元)", data: rows.map(r => r.eps), backgroundColor: "#2c3e50", yAxisID: "y" },
-    { type: "line", label: "毛利率(%)", data: rows.map(r => r.grossMargin), borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
-    { type: "line", label: "營益率(%)", data: rows.map(r => r.operatingMargin), borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
-    { type: "line", label: "稅前淨利率(%)", data: rows.map(r => r.pretaxMargin), borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y1", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
-    { type: "line", label: "稅後淨利率(%)", data: rows.map(r => r.netMargin), borderColor: "#c0392b", backgroundColor: "#c0392b", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+  const pctSeries = [
+    rows.map(r => r.grossMargin),
+    rows.map(r => r.operatingMargin),
+    rows.map(r => r.pretaxMargin),
+    rows.map(r => r.netMargin),
   ];
+
+  const datasets = [
+    { type: "bar", label: "單季EPS(元)", data: rows.map(r => r.quarterlyEps), backgroundColor: "#8395a7", yAxisID: "y" },
+    { type: "bar", label: "累計EPS(元)", data: rows.map(r => r.eps), backgroundColor: "#ced6e0", yAxisID: "y" },
+    { type: "line", label: "毛利率(%)", data: pctSeries[0], borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+    { type: "line", label: "營益率(%)", data: pctSeries[1], borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+    { type: "line", label: "稅前淨利率(%)", data: pctSeries[2], borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y1", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
+    { type: "line", label: "稅後淨利率(%)", data: pctSeries[3], borderColor: "#c0392b", backgroundColor: "#c0392b", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
+  ];
+
+  // EPS 軸(y)跟百分比軸(y1)如果各自從自己的資料範圍自動計算高度，兩邊的「0」會剛好對齊在
+  // 同一條水平線上——這樣柱狀圖(從0開始長)很容易把貼在0附近的百分比折線蓋住。這裡刻意把
+  // y1 的範圍往下拉很長一段(遠低於百分比的實際資料範圍)，讓百分比實際資料只佔整張圖上方一小段，
+  // 效果是百分比的 0% 基準線被往上推到接近圖表頂端，折線就會完全浮在柱狀圖上方，不會被擋住。
+  const pctValues = pctSeries.flat().filter(v => v !== null);
+  const pctMax = pctValues.length ? Math.max(0, ...pctValues) : 1;
+  const pctMin = pctValues.length ? Math.min(0, ...pctValues) : 0;
+  const pctSpan = Math.max(pctMax - pctMin, 1);
+  const y1Max = pctMax + pctSpan * 0.15;
+  const y1Min = y1Max - pctSpan * 6; // 總範圍拉成實際資料的6倍寬，實際資料只佔頂端約15%的高度
 
   const config = {
     data: { labels, datasets },
@@ -103,7 +147,13 @@ function renderChart(rows) {
       scales: {
         x: { ticks: { maxRotation: 90, minRotation: 90 } },
         y: { position: "left", title: { display: true, text: "EPS(元)" } },
-        y1: { position: "right", title: { display: true, text: "%" }, grid: { drawOnChartArea: false } },
+        y1: {
+          position: "right",
+          title: { display: true, text: "%" },
+          grid: { drawOnChartArea: false },
+          min: y1Min,
+          max: y1Max,
+        },
       },
     },
   };
@@ -137,6 +187,7 @@ function renderTable(rows) {
       <td>${fmtPct(r.operatingMargin)}</td>
       <td>${fmtPct(r.pretaxMargin)}</td>
       <td>${fmtPct(r.netMargin)}</td>
+      <td>${r.quarterlyEps === null ? "-" : r.quarterlyEps.toFixed(2)}</td>
       <td>${r.eps === null ? "-" : r.eps.toFixed(2)}</td>
     `;
     tableBody.appendChild(tr);
