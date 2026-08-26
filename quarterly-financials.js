@@ -127,15 +127,26 @@ function renderChart(rows) {
   ];
 
   // EPS 軸(y)跟百分比軸(y1)如果各自從自己的資料範圍自動計算高度，兩邊的「0」會剛好對齊在
-  // 同一條水平線上——這樣柱狀圖(從0開始長)很容易把貼在0附近的百分比折線蓋住。這裡刻意把
-  // y1 的範圍往下拉很長一段(遠低於百分比的實際資料範圍)，讓百分比實際資料只佔整張圖上方一小段，
-  // 效果是百分比的 0% 基準線被往上推到接近圖表頂端，折線就會完全浮在柱狀圖上方，不會被擋住。
+  // 同一條水平線上——這樣柱狀圖(從0開始長)很容易把貼在0附近的百分比折線蓋住。
+  // 這裡改成明確劃分：圖表下方 60% 高度固定保留給柱狀圖(EPS 軸的 max 直接算到讓柱子頂多長到
+  // 60% 那條線)，上方 40% 保留給折線(百分比軸的實際資料範圍，直接撐滿這 40%，不是像之前那樣
+  // 硬拉伸 6 倍讓資料只佔頂端一小段)——這樣兩邊絕對不會重疊，而且折線分到的高度比之前多超過
+  // 一倍，同一批數值之間的差距會明顯很多，不會看起來像貼在一起的平線。
+  const BAR_HEIGHT_FRACTION = 0.6;
+  const LINE_HEIGHT_FRACTION = 1 - BAR_HEIGHT_FRACTION;
+
+  const epsValues = [...rows.map(r => r.quarterlyEps), ...rows.map(r => r.eps)].filter(v => v !== null);
+  const epsMax = epsValues.length ? Math.max(0, ...epsValues) : 1;
+  const epsMin = epsValues.length ? Math.min(0, ...epsValues) : 0;
+  const epsSpan = Math.max(epsMax - epsMin, 1);
+  const yMin = epsMin - epsSpan * 0.1;
+  const yMax = yMin + (epsMax - yMin) / BAR_HEIGHT_FRACTION;
+
   const pctValues = pctSeries.flat().filter(v => v !== null);
   const pctMax = pctValues.length ? Math.max(0, ...pctValues) : 1;
   const pctMin = pctValues.length ? Math.min(0, ...pctValues) : 0;
-  const pctSpan = Math.max(pctMax - pctMin, 1);
-  const y1Max = pctMax + pctSpan * 0.15;
-  const y1Min = y1Max - pctSpan * 6; // 總範圍拉成實際資料的6倍寬，實際資料只佔頂端約15%的高度
+  const y1Max = pctMax + Math.max(pctMax - pctMin, 1) * 0.05;
+  const y1Min = y1Max - (y1Max - pctMin) / LINE_HEIGHT_FRACTION;
 
   const config = {
     data: { labels, datasets },
@@ -157,7 +168,7 @@ function renderChart(rows) {
             font: (ctx) => (ctx.index != null && labels[ctx.index]?.endsWith("Q4") ? { weight: "bold" } : undefined),
           },
         },
-        y: { position: "left", title: { display: true, text: "EPS(元)" } },
+        y: { position: "left", title: { display: true, text: "EPS(元)" }, min: yMin, max: yMax },
         y1: {
           position: "right",
           title: { display: true, text: "%" },
