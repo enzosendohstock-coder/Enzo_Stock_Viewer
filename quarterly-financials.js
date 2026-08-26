@@ -168,13 +168,29 @@ function renderChart(rows) {
             font: (ctx) => (ctx.index != null && labels[ctx.index]?.endsWith("Q4") ? { weight: "bold" } : undefined),
           },
         },
-        y: { position: "left", title: { display: true, text: "EPS(元)" }, min: yMin, max: yMax },
+        // 0 的刻度特別標紅+加粗，兩軸都是，方便一眼看出數值是正是負。ctx.tick 在 Chart.js
+        // 內部用不完整的 context 探測預設值時可能是 undefined，要防呆(跟上面 x 軸 Q4 標籤、
+        // institutional.html 的零基準線同樣的坑)。
+        y: {
+          position: "left",
+          title: { display: true, text: "EPS(元)" },
+          min: yMin,
+          max: yMax,
+          ticks: {
+            color: (ctx) => (ctx.tick && ctx.tick.value === 0 ? "#c0392b" : "#666"),
+            font: (ctx) => (ctx.tick && ctx.tick.value === 0 ? { weight: "bold" } : undefined),
+          },
+        },
         y1: {
           position: "right",
           title: { display: true, text: "%" },
           grid: { drawOnChartArea: false },
           min: y1Min,
           max: y1Max,
+          ticks: {
+            color: (ctx) => (ctx.tick && ctx.tick.value === 0 ? "#c0392b" : "#666"),
+            font: (ctx) => (ctx.tick && ctx.tick.value === 0 ? { weight: "bold" } : undefined),
+          },
         },
       },
     },
