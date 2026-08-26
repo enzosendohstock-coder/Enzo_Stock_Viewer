@@ -8,6 +8,12 @@ const tableBody = document.querySelector("#dataTable tbody");
 let allRows = [];
 let chart = null;
 
+// 滑鼠移到某一季時，用一條虛線標出當季單季EPS的高度，同時把其他年度「同一季」的柱子
+// 一起變色，方便直接目測「今年這一季」跟「往年同一季」的落差——跟月營收頁面
+// (monthly-revenue.js)的同月比較是同樣的設計，這裡是同季比較，只套用在柱狀圖(EPS)，
+// 折線(四率)不受影響。
+const hoverState = { index: null };
+
 // 股票代號欄位是文字輸入(可以打代號或名稱)+ 自動完成建議清單，共用邏輯見 stock-autocomplete.js。
 let codeToStock = new Map();
 let currentStockCode = null;
@@ -99,9 +105,56 @@ function getFilteredRows() {
 
 function render() {
   const rows = getFilteredRows();
+  hoverState.index = null; // 換股票時清掉舊的 hover 狀態，不然會對到新資料裡不相關的索引位置
   renderChart(rows);
   renderTable(rows);
 }
+
+// 滑鼠移到圖上時，找出最近的季別索引，畫一條貼著「單季EPS」柱子頂端高度的水平虛線，
+// 同時觸發上面 makeBarColorFn() 的同季變色邏輯(只需要更新 hoverState.index 再重繪，
+// 顏色判斷本身在 backgroundColor callback 裡)。跟其餘頁面(institutional.html/
+// monthly-revenue.js)的十字準線同一套設計，只是這裡沒有額外的固定資訊列。
+const quarterlyChartHoverPlugin = {
+  id: "quarterlyChartHover",
+  afterEvent(chartInstance, args) {
+    const event = args.event;
+    if (event.type === "mousemove" || event.type === "mousedown") {
+      const points = chartInstance.getElementsAtEventForMode(event, "index", { intersect: false }, true);
+      if (points.length > 0 && points[0].index !== hoverState.index) {
+        hoverState.index = points[0].index;
+        chartInstance.update("none");
+      }
+    } else if (event.type === "mouseout") {
+      if (hoverState.index !== null) {
+        hoverState.index = null;
+        chartInstance.update("none");
+      }
+    }
+  },
+  afterDatasetsDraw(chartInstance) {
+    const index = hoverState.index;
+    if (index == null) {
+      return;
+    }
+    const meta = chartInstance.getDatasetMeta(0); // 單季EPS 這個 bar dataset
+    const point = meta.data[index];
+    if (!point) {
+      return;
+    }
+
+    const { ctx, chartArea } = chartInstance;
+    ctx.save();
+    ctx.setLineDash([4, 4]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "#999999";
+    ctx.beginPath();
+    ctx.moveTo(chartArea.left, point.y);
+    ctx.lineTo(chartArea.right, point.y);
+    ctx.stroke();
+    ctx.restore();
+  },
+};
+Chart.register(quarterlyChartHoverPlugin);
 
 // EPS(元)跟四率(%)單位差太多，分開放左右兩個 Y 軸；EPS 同時畫單季跟累計兩根柱子(並排顯示，
 // Chart.js 兩個 bar dataset 共用同一個類別軸預設就是並排、不是疊加)，方便直接比較單季表現
@@ -117,9 +170,37 @@ function renderChart(rows) {
     rows.map(r => r.netMargin),
   ];
 
+  // 用同一個 index 對照當季跟其他年度同一季："2026Q2" 跟 "2025Q2" 只要 slice(4) 之後
+  // 都是 "Q2" 就算同季；hoverIndex 本身那一根柱子用最深的顏色標出來，其他年度同季的柱子
+  // 用稍淺一階的顏色，兩者跟平常沒 hover 時的底色都不一樣，一眼就能分出「現在指到的」
+  // 跟「其他年度同季」跟「其餘完全不相關」這三種狀態。
+  function makeBarColorFn(baseColor, selfColor, sameQuarterColor) {
+    return (context) => {
+      const hoverIndex = hoverState.index;
+      // Chart.js 除了每根柱子各自呼叫一次，也會在「整個 dataset 的預設樣式」這層呼叫一次
+      // (這時候沒有 dataIndex)，要先擋掉，不然 labels[undefined] 會直接炸掉。
+      if (hoverIndex == null || context.dataIndex == null) {
+        return baseColor;
+      }
+      if (context.dataIndex === hoverIndex) {
+        return selfColor;
+      }
+      if (labels[context.dataIndex]?.slice(4) === labels[hoverIndex]?.slice(4)) {
+        return sameQuarterColor;
+      }
+      return baseColor;
+    };
+  }
+
   const datasets = [
-    { type: "bar", label: "單季EPS(元)", data: rows.map(r => r.quarterlyEps), backgroundColor: "#8395a7", yAxisID: "y" },
-    { type: "bar", label: "累計EPS(元)", data: rows.map(r => r.eps), backgroundColor: "#ced6e0", yAxisID: "y" },
+    {
+      type: "bar", label: "單季EPS(元)", data: rows.map(r => r.quarterlyEps),
+      backgroundColor: makeBarColorFn("#8395a7", "#c0392b", "#e8a598"), yAxisID: "y",
+    },
+    {
+      type: "bar", label: "累計EPS(元)", data: rows.map(r => r.eps),
+      backgroundColor: makeBarColorFn("#ced6e0", "#e67e22", "#f5cba7"), yAxisID: "y",
+    },
     { type: "line", label: "毛利率(%)", data: pctSeries[0], borderColor: "#3498db", backgroundColor: "#3498db", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
     { type: "line", label: "營益率(%)", data: pctSeries[1], borderColor: "#e67e22", backgroundColor: "#e67e22", yAxisID: "y1", pointRadius: 2, borderWidth: 2 },
     { type: "line", label: "稅前淨利率(%)", data: pctSeries[2], borderColor: "#9b59b6", backgroundColor: "#9b59b6", yAxisID: "y1", pointRadius: 2, borderWidth: 2, borderDash: [4, 4] },
